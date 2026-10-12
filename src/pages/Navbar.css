@@ -1,0 +1,150 @@
+.topbar {
+  min-height: 84px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 18px;
+  border-bottom: 1px solid #eae8e2;
+}
+
+.brand {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  text-decoration: none;
+  color: #242321;
+  font-family: Manrope, sans-serif;
+  font-size: 17px;
+  font-weight: 800;
+  letter-spacing: -0.6px;
+}
+
+.brand-mark {
+  display: grid;
+  width: 30px;
+  height: 30px;
+  place-items: center;
+  border-radius: 9px;
+  color: #fff;
+  background: #5948df;
+}
+
+.brand-mark svg {
+  width: 19px;
+  height: 19px;
+}
+
+.topbar-nav {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 28px;
+  flex: 1;
+}
+
+.topbar-nav a {
+  color: #5f5d59;
+  font-size: 13px;
+  font-weight: 600;
+  text-decoration: none;
+  transition: color 160ms ease;
+}
+
+.topbar-nav a:hover,
+.topbar-nav a:focus-visible {
+  color: #201f1d;
+}
+
+.topbar-actions {
+  display: inline-flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 10px;
+}
+
+.nav-button {
+  min-height: 40px;
+  padding: 0 16px;
+  border: 1px solid transparent;
+  border-radius: 10px;
+  font-size: 13px;
+  font-weight: 600;
+  transition: background-color 160ms ease, border-color 160ms ease, box-shadow 160ms ease, transform 160ms ease;
+}
+
+.nav-button:hover {
+  transform: translateY(-1px);
+}
+
+.nav-button-secondary {
+  color: #48443f;
+  border-color: #e4e0d8;
+  background: #fff;
+}
+
+.nav-button-secondary:hover {
+  border-color: #d7d1c6;
+  background: #faf8f4;
+}
+
+.nav-button-primary {
+  color: #fff;
+  background: #5545d8;
+  box-shadow: 0 6px 15px rgba(85, 69, 216, 0.2);
+}
+
+.nav-button-primary:hover {
+  background: #4737c5;
+  box-shadow: 0 8px 18px rgba(85, 69, 216, 0.25);
+}
+
+.topbar-note {
+  display: inline-flex;
+  align-items: center;
+  gap: 9px;
+  color: #66655f;
+  font-size: 13px;
+  font-weight: 500;
+}
+
+.status-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: #46a678;
+  box-shadow: 0 0 0 3px rgba(70, 166, 120, 0.12);
+}
+
+@media (max-width: 700px) {
+  .topbar {
+    min-height: 72px;
+    flex-wrap: wrap;
+    justify-content: center;
+    padding: 18px 0;
+  }
+
+  .topbar-nav {
+    order: 3;
+    width: 100%;
+    gap: 18px;
+    flex-wrap: wrap;
+  }
+
+  .topbar-actions {
+    width: 100%;
+    justify-content: center;
+    flex-wrap: wrap;
+  }
+}
+
+@media (max-width: 480px) {
+  .topbar-note {
+    font-size: 11px;
+  }
+
+  .nav-button {
+    min-height: 36px;
+    padding: 0 12px;
+    font-size: 12px;
+  }
+}
