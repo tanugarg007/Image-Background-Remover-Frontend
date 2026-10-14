@@ -37,7 +37,7 @@ function Navbar() {
       <div className="topbar-actions">
         <div className="topbar-note">
           <span className="status-dot" />
-          Free, fast &amp; private
+          Free, fast & private
         </div>
         <button className="nav-button nav-button-secondary" type="button">
           Log in

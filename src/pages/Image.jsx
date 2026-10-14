@@ -10,7 +10,7 @@ import {
   CheckCircle2,
 } from "lucide-react";
 import "./Image.css";
-
+import imageCompression from "browser-image-compression";
 function Image() {
   const fileInputRef = useRef(null);
 

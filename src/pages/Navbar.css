@@ -1,4 +1,8 @@
 .topbar {
+  width: 100%;
+  max-width: 1440px;
+  margin: 0 auto;
+  padding: 0 7.1%;
   min-height: 84px;
   display: flex;
   align-items: center;
