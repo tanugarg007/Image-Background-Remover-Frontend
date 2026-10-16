@@ -42,7 +42,7 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  gap: 28px;
+  gap: clamp(11px, 1.5vw, 22px);
   flex: 1;
 }
 
@@ -51,8 +51,12 @@
   font-size: 13px;
   font-weight: 600;
   text-decoration: none;
+  white-space: nowrap;
   transition: color 160ms ease;
 }
+
+.app-section { scroll-margin-top: 18px; }
+html { scroll-behavior: smooth; }
 
 .topbar-nav a:hover,
 .topbar-nav a:focus-visible {
@@ -139,6 +143,14 @@
     justify-content: center;
     flex-wrap: wrap;
   }
+}
+
+@media (max-width: 1120px) and (min-width: 701px) {
+  .topbar { padding-right: 3%; padding-left: 3%; gap: 12px; }
+  .topbar-nav { gap: 11px; }
+  .topbar-nav a { font-size: 11px; }
+  .topbar-note { display: none; }
+  .nav-button { padding: 0 11px; font-size: 11px; }
 }
 
 @media (max-width: 480px) {

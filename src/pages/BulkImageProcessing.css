@@ -89,20 +89,6 @@
 .bulk-clear:disabled { opacity: .45; cursor: not-allowed; }
 .bulk-privacy { margin: -8px 0 0; color: #a09ba5; font-size: 9px; text-align: center; }
 .bulk-api-error { width: min(100%, 1120px); margin: 12px auto; color: #b13f4c; font-size: 12px; }
-.bulk-history { width: min(100%, 1120px); margin: 22px auto 0; overflow: hidden; border: 1px solid #e9e6e1; border-radius: 15px; background: #fff; box-shadow: 0 10px 35px rgba(47, 38, 84, 0.05); }
-.bulk-history-heading { display: flex; align-items: center; justify-content: space-between; padding: 15px 18px; border-bottom: 1px solid #efedf0; }
-.bulk-history-heading strong, .bulk-history-heading small { display: block; }
-.bulk-history-heading strong { color: #38343f; font-size: 12px; }
-.bulk-history-heading small { margin-top: 4px; color: #96929c; font-size: 9px; }
-.bulk-history-heading button { border: 1px solid #e8e5ec; border-radius: 7px; padding: 7px 10px; color: #6254b5; background: white; font-size: 10px; font-weight: 700; }
-.bulk-history-row { display: flex; align-items: center; gap: 15px; padding: 12px 18px; border-bottom: 1px solid #f1eff2; }
-.bulk-history-row:last-of-type { border-bottom: 0; }
-.bulk-history-row > div { flex: 1; }
-.bulk-history-row strong, .bulk-history-row small { display: block; }
-.bulk-history-row strong { color: #494550; font-size: 11px; }
-.bulk-history-row small, .bulk-history-row time { margin-top: 4px; color: #96919b; font-size: 9px; }
-.bulk-history-row button { width: 30px; height: 30px; display: grid; place-items: center; border: 1px solid #eeebf0; border-radius: 7px; color: #b34450; background: #fff; }
-.bulk-history-empty { padding: 4px 18px 16px; color: #96919b; font-size: 10px; }
 .bulk-spin { animation: bulk-spin 1s linear infinite; }
 @keyframes bulk-spin { to { transform: rotate(360deg); } }
 

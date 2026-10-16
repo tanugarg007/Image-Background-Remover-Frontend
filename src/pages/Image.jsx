@@ -17,6 +17,7 @@ function Image() {
   const [selectedFile, setSelectedFile] = useState(null);
   const [originalImage, setOriginalImage] = useState("");
   const [processedImage, setProcessedImage] = useState("");
+  const [processedFilename, setProcessedFilename] = useState("");
   const [isDragging, setIsDragging] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
@@ -42,6 +43,8 @@ function Image() {
     setError("");
     setMessage("");
     setProcessedImage("");
+    setProcessedFilename("");
+    setProcessedFilename("");
 
     const allowedTypes = [
       "image/png",
@@ -126,8 +129,20 @@ function Image() {
         throw new Error(errorMessage);
       }
 
-      // Backend returns the processed image as PNG bytes.
-      const imageBlob = await response.blob();
+      const result = await response.json();
+      if (typeof result.filename !== "string" || !result.filename) {
+        throw new Error(result.message || "The server did not provide the processed image name.");
+      }
+
+      const imageResponse = await fetch(
+        `http://localhost:4000/users/backgrounddownload/${encodeURIComponent(result.filename)}`,
+        { cache: "no-store" }
+      );
+      if (!imageResponse.ok) {
+        throw new Error("Background was removed, but the processed image could not be loaded.");
+      }
+
+      const imageBlob = await imageResponse.blob();
 
       if (
         imageBlob.size === 0 ||
@@ -141,6 +156,7 @@ function Image() {
       const resultUrl = URL.createObjectURL(imageBlob);
 
       setProcessedImage(resultUrl);
+      setProcessedFilename(result.filename);
       setMessage("Background removed successfully!");
     } catch (err) {
       console.error("Background removal error:", err);
@@ -156,23 +172,41 @@ function Image() {
   };
 
   // Download the processed PNG.
-  const handleDownload = () => {
-    if (!processedImage) return;
+ const handleDownload = async () => {
+  if (!processedFilename) return;
+  try {
+    const response = await fetch(
+      `http://localhost:4000/users/backgrounddownload/${encodeURIComponent(processedFilename)}`,
+      { cache: "no-store" }
+    );
+
+    if (!response.ok) {
+      throw new Error("Image download failed");
+    }
+
+    const blob = await response.blob();
+    const url = URL.createObjectURL(blob);
 
     const link = document.createElement("a");
-    link.href = processedImage;
-    link.download = "background-removed.png";
-
+    link.href = url;
+    link.download = processedFilename;
     document.body.appendChild(link);
     link.click();
     link.remove();
-  };
+
+    URL.revokeObjectURL(url);
+  } catch (error) {
+    console.error(error);
+    alert(error.message || "Download failed");
+  }
+};
 
   // Start again with a new image.
   const handleReset = () => {
     setSelectedFile(null);
     setOriginalImage("");
     setProcessedImage("");
+    setProcessedFilename("");
     setError("");
     setMessage("");
 

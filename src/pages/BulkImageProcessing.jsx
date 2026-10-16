@@ -113,27 +113,10 @@ function BulkImageProcessing() {
   const [dragging, setDragging] = useState(false);
   const [error, setError] = useState("");
   const [apiError, setApiError] = useState("");
+  const [batchId, setBatchId] = useState(null);
   const [savedBatches, setSavedBatches] = useState([]);
-const BULK_API = "http://localhost:4000/users/bulkimage";
- const loadSavedBatches = async () => {
-  try {
-    const response = await fetch(
-      "http://localhost:4000/users/bulkimages"
-    );
-    const data = await response.json().catch(() => ({}));
-    if (!response.ok) {
-      throw new Error(data.message || `Failed to fetch batches (${response.status})`);
-    }
-
-    setSavedBatches(data.data || []);
-  } catch (error) {
-    setApiError(error.message);
-  }
-};
 
   useEffect(() => {
-    loadSavedBatches();
-
     return () => {
       urlsRef.current.forEach((url) => URL.revokeObjectURL(url));
       urlsRef.current.clear();
@@ -193,9 +176,12 @@ const BULK_API = "http://localhost:4000/users/bulkimage";
     setItems((current) => current.filter((item) => item.id !== id));
   };
 
- const clearQueue = () => {
+
+
+const clearQueue = async () => {
   if (processing) return;
 
+  // Remove local photos immediately
   items.forEach((item) => {
     revokeObjectUrl(item.previewUrl, urlsRef);
     revokeObjectUrl(item.outputUrl, urlsRef);
@@ -203,45 +189,50 @@ const BULK_API = "http://localhost:4000/users/bulkimage";
 
   setItems([]);
   setError("");
-};
+  setApiError("");
 
-const updateItem = async (id, images) => {
-  const response = await fetch(
-    `http://localhost:4000/users/bulkimage/${id}`,
-    {
-      method: "PATCH",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        images,
-        totalImages: images.length,
-        successCount: images.filter(
-          (image) => image.status === "completed"
-        ).length,
-        failedCount: images.filter(
-          (image) => image.status === "failed"
-        ).length,
-        status: images.every(
-          (image) => image.status === "completed"
+  // Delete saved MongoDB batch separately, if available
+  if (batchId) {
+    try {
+      const response = await fetch(
+        `http://localhost:4000/users/bulkimage/${batchId}`,
+        { method: "DELETE" }
+      );
+
+      const result = await response.json();
+
+      if (!response.ok) {
+        throw new Error(
+          result.message || result.error || "Database delete failed"
+        );
+      }
+
+      setSavedBatches((current) =>
+        current.filter(
+          (batch) => (batch._id || batch.id) !== batchId
         )
-          ? "completed"
-          : "failed",
-      }),
+      );
+
+      setBatchId(null);
+    } catch (err) {
+      setApiError(
+        err instanceof Error
+          ? `Queue cleared locally, but database deletion failed: ${err.message}`
+          : "Queue cleared locally, but database deletion failed."
+      );
     }
-  );
-
-  const data = await response.json();
-
-  if (!response.ok) {
-    throw new Error(data.message || "Failed to update batch");
   }
-
-  await loadSavedBatches();
-  return data.data;
 };
+
+
+
+  const patchItem = (id, changes) => {
+    setItems((current) => current.map((item) =>
+      item.id === id ? { ...item, ...changes } : item
+    ));
+  };
   const processOne = async (item, selectedFormat, selectedQuality, selectedWidth) => {
-    updateItem(item.id, {
+    patchItem(item.id, {
       status: "processing",
       message: "Processing...",
     });
@@ -288,7 +279,7 @@ const updateItem = async (id, images) => {
         width,
         height,
         quality: selectedQuality,
-        maxWidth: selectedWidth || 0,
+        ...(selectedWidth > 0 ? { maxWidth: selectedWidth } : {}),
         status: "completed",
       };
     } catch (cause) {
@@ -297,7 +288,7 @@ const updateItem = async (id, images) => {
           ? cause.message
           : "Could not process this image.";
 
-      updateItem(item.id, { status: "error", message });
+      patchItem(item.id, { status: "error", message });
 
       return {
         success: false,
@@ -305,14 +296,15 @@ const updateItem = async (id, images) => {
         originalFormat: item.file.type.split("/")[1] || "unknown",
         originalSize: item.file.size,
         quality: selectedQuality,
-        maxWidth: selectedWidth || 0,
+        ...(selectedWidth > 0 ? { maxWidth: selectedWidth } : {}),
         status: "failed",
         errorMessage: message,
       };
     }
   };
 
- const saveBatch = async (images) => {
+ 
+const saveBatch = async (images) => {
   const response = await fetch(
     "http://localhost:4000/users/bulkimage",
     {
@@ -338,160 +330,212 @@ const updateItem = async (id, images) => {
     }
   );
 
-  const data = await response.json();
+  const result = await response.json();
 
   if (!response.ok) {
-    throw new Error(data.message || "Failed to save batch");
+    throw new Error(
+      result.error || result.message || "Failed to save batch"
+    );
   }
 
-  await loadSavedBatches();
-  return data.data;
+  const savedBatch = result.data;
+
+  if (!savedBatch?._id && !savedBatch?.id) {
+    throw new Error("Batch saved, but the API did not return its ID");
+  }
+
+  const id = savedBatch._id || savedBatch.id;
+
+  setBatchId(id);
+  setSavedBatches((current) => [
+    savedBatch,
+    ...current.filter(
+      (batch) => (batch._id || batch.id) !== id
+    ),
+  ]);
+
+  return savedBatch;
 };
 
-  const processAll = async () => {
-    const queue = items.filter((item) => item.status !== "done");
 
-    if (!queue.length || processing) return;
+const updateBatch = async (id, images) => {
+  if (!id) {
+    throw new Error("Batch ID is missing. Save the batch first.");
+  }
 
-    setProcessing(true);
-    setError("");
-    setApiError("");
+  const response = await fetch(
+    `http://localhost:4000/users/bulkimage/${id}`,
+    {
+      method: "PUT",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        images,
+        totalImages: images.length,
+        successCount: images.filter(
+          (image) => image.status === "completed"
+        ).length,
+        failedCount: images.filter(
+          (image) => image.status === "failed"
+        ).length,
+        status: images.every(
+          (image) => image.status === "completed"
+        )
+          ? "completed"
+          : "failed",
+      }),
+    }
+  );
 
+  const result = await response.json();
+
+  if (!response.ok) {
+    throw new Error(
+      result.error || result.message || "Failed to update batch"
+    );
+  }
+
+  const updatedBatch = result.data;
+
+  setSavedBatches((current) =>
+    current.map((batch) =>
+      (batch._id || batch.id) === id ? updatedBatch : batch
+    )
+  );
+
+  return updatedBatch;
+};
+
+
+  
+const processAll = async () => {
+  const queue = items.filter((item) => item.status !== "done");
+
+  if (!queue.length || processing) return;
+
+  setProcessing(true);
+  setError("");
+  setApiError("");
+
+  try {
     const results = [];
 
-    try {
-      for (const item of queue) {
-        const result = await processOne(item, format, quality, Number(maxWidth));
-        results.push(result);
-      }
-
-      await saveBatch(results);
-    } catch (cause) {
-      setApiError(
-        cause instanceof Error ? cause.message : "Could not save this batch."
-      );
-    } finally {
-      setProcessing(false);
-    }
-  };
-
-  const processItem = async (item) => {
-    if (processing) return;
-
-    setProcessing(true);
-    setApiError("");
-
-    try {
+    for (const item of queue) {
       const result = await processOne(
         item,
-        item.editFormat || format,
-        item.editQuality ?? quality,
-        Number(item.editMaxWidth) || 0
+        format,
+        quality,
+        Number(maxWidth)
       );
 
-      if (item.batchId) {
-        const response = await fetch(`${BULK_API}/${item.batchId}`, {
-          method: "PATCH",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ imageId: item.recordImageId, image: result }),
-        });
-
-        const data = await response.json();
-
-        if (!response.ok) {
-          throw new Error(data.message || "Could not update the saved batch.");
-        }
-
-        await loadSavedBatches();
-      }
-    } catch (cause) {
-      setApiError(
-        cause instanceof Error ? cause.message : "Could not update the saved batch."
-      );
-    } finally {
-      setProcessing(false);
+      results.push(result);
     }
-  };
 
- const downloadBulkImage = async (id) => {
+    // Save processed results as a new batch
+    await saveBatch(results);
+  } catch (cause) {
+    setApiError(
+      cause instanceof Error
+        ? cause.message
+        : "Could not save this batch."
+    );
+  } finally {
+    setProcessing(false);
+  }
+};
+
+const processItem = async (item) => {
+  if (processing) return;
+
+  setProcessing(true);
+  setApiError("");
+
   try {
-    const response = await fetch(
-      `http://localhost:4000/users/downloadbulk/${id}`
+    const result = await processOne(
+      item,
+      item.editFormat || format,
+      item.editQuality ?? quality,
+      Number(item.editMaxWidth) || 0
     );
 
+    // Update the existing saved batch if one exists
+    if (batchId) {
+      const existingBatch = savedBatches.find(
+        (batch) => (batch._id || batch.id) === batchId
+      );
+
+      const previousImages = existingBatch?.images || [];
+
+      const updatedImages = [
+        ...previousImages.filter(
+          (image) =>
+            image.originalFileName !== result.originalFileName
+        ),
+        result,
+      ];
+
+      await updateBatch(batchId, updatedImages);
+    } else {
+      // No existing batch: save this result as a new batch
+      await saveBatch([result]);
+    }
+  } catch (cause) {
+    setApiError(
+      cause instanceof Error
+        ? cause.message
+        : "Could not update the saved batch."
+    );
+  } finally {
+    setProcessing(false);
+  }
+};
+
+  
+const downloadItem = async (item) => {
+  try {
+    if (!item.outputUrl || item.status !== "done") {
+      setApiError("Please process this image before downloading.");
+      return;
+    }
+
+    setApiError("");
+
+    const response = await fetch(item.outputUrl);
+
     if (!response.ok) {
-      const data = await response.json();
-      throw new Error(data.message || "Download failed");
+      throw new Error("Could not read the processed image.");
     }
 
     const blob = await response.blob();
-    const url = URL.createObjectURL(blob);
 
+    if (!blob.size) {
+      throw new Error("The downloaded image is empty.");
+    }
+
+    const downloadUrl = URL.createObjectURL(blob);
     const link = document.createElement("a");
-    link.href = url;
-    link.download = "processed-image.png";
+
+    link.href = downloadUrl;
+    link.download = `${getBaseName(item.file.name)}.${getExtension(
+      item.outputFormat
+    )}`;
+
     document.body.appendChild(link);
     link.click();
     link.remove();
 
-    setTimeout(() => URL.revokeObjectURL(url), 1000);
-  } catch (error) {
+    setTimeout(() => URL.revokeObjectURL(downloadUrl), 2000);
+  } catch (err) {
     setApiError(
-      error instanceof Error ? error.message : "Download failed"
+      err instanceof Error
+        ? err.message
+        : "Image download failed."
     );
   }
 };
 
-const downloadAllBulkImages = async () => {
-  try {
-    const response = await fetch(
-      "http://localhost:4000/users/download"
-    );
 
-    if (!response.ok) {
-      const data = await response.json();
-      throw new Error(data.message || "Download all failed");
-    }
-
-    const blob = await response.blob();
-    const url = URL.createObjectURL(blob);
-
-    const link = document.createElement("a");
-    link.href = url;
-    link.download = "bulk-images.zip";
-    document.body.appendChild(link);
-    link.click();
-    link.remove();
-
-    setTimeout(() => URL.revokeObjectURL(url), 1000);
-  } catch (error) {
-    setApiError(
-      error instanceof Error ? error.message : "Download all failed"
-    );
-  }
-};
-  const deleteBatch = async (id) => {
-  try {
-    const response = await fetch(
-      `http://localhost:4000/users/bulkimage/${id}`,
-      {
-        method: "DELETE",
-      }
-    );
-
-    const data = await response.json();
-
-    if (!response.ok) {
-      throw new Error(data.message || "Failed to delete batch");
-    }
-
-    setSavedBatches((current) =>
-      current.filter((batch) => batch._id !== id)
-    );
-  } catch (error) {
-    setApiError(error.message);
-  }
-};
   const completedCount = items.filter((item) => item.status === "done").length;
 
   return (
@@ -585,7 +629,7 @@ const downloadAllBulkImages = async () => {
                           className="bulk-icon-button"
                           type="button"
                           onClick={() =>
-                            updateItem(item.id, {
+                            patchItem(item.id, {
                               editOpen: !item.editOpen,
                               editFormat: item.outputFormat || format,
                             })
@@ -598,14 +642,14 @@ const downloadAllBulkImages = async () => {
                       )}
 
                       {item.status === "done" ? (
-                        <button
-                          className="bulk-icon-button bulk-download"
-                          type="button"
-                          onClick={() => downloadItem(item)}
-                          aria-label={`Download ${item.file.name}`}
-                        >
-                          <ArrowDownToLine size={16} />
-                        </button>
+                      <button
+  className="bulk-icon-button bulk-download"
+  type="button"
+  onClick={() => downloadItem(item)}
+  aria-label={`Download ${item.file.name}`}
+>
+  <ArrowDownToLine size={16} />
+</button>
                       ) : (
                         <button
                           className="bulk-icon-button"
@@ -626,7 +670,7 @@ const downloadAllBulkImages = async () => {
                           <select
                             value={item.editFormat}
                             onChange={(event) =>
-                              updateItem(item.id, { editFormat: event.target.value })
+                              patchItem(item.id, { editFormat: event.target.value })
                             }
                           >
                             <option value="WEBP">WebP</option>
@@ -644,7 +688,7 @@ const downloadAllBulkImages = async () => {
                             value={item.editQuality}
                             disabled={item.editFormat === "PNG"}
                             onChange={(event) =>
-                              updateItem(item.id, {
+                              patchItem(item.id, {
                                 editQuality: Math.min(
                                   100,
                                   Math.max(10, Number(event.target.value))
@@ -663,7 +707,7 @@ const downloadAllBulkImages = async () => {
                             placeholder="Original"
                             value={item.editMaxWidth}
                             onChange={(event) =>
-                              updateItem(item.id, {
+                              patchItem(item.id, {
                                 editMaxWidth: event.target.value,
                               })
                             }
@@ -772,16 +816,6 @@ const downloadAllBulkImages = async () => {
                     : "Process all images"}
               </button>
 
-              {completedCount > 0 && (
-                <button
-                  className="bulk-secondary"
-                  type="button"
-                  onClick={downloadAll}
-                >
-                  <ArrowDownToLine size={15} /> Download all
-                </button>
-              )}
-
               {items.length > 0 && (
                 <button
                   className="bulk-clear"
@@ -795,52 +829,16 @@ const downloadAllBulkImages = async () => {
             </div>
 
             <p className="bulk-privacy">Your images stay on this device.</p>
+
           </aside>
         </div>
       </section>
 
       {apiError && <p className="bulk-api-error" role="alert">{apiError}</p>}
 
-      <section className="bulk-history" aria-label="Saved batches">
-        <div className="bulk-history-heading">
-          <div>
-            <strong>Saved batches</strong>
-            <small>Stored in your backend database</small>
-          </div>
-          <button type="button" onClick={loadSavedBatches}>Refresh</button>
-        </div>
-
-        {savedBatches.length ? (
-          savedBatches.map((batch) => (
-            <article className="bulk-history-row" key={batch._id}>
-              <div>
-                <strong>{batch.totalImages} images</strong>
-                <small>
-                  {batch.successCount} completed · {batch.failedCount} failed · {batch.status}
-                </small>
-              </div>
-
-              <time>
-                {batch.createdAt
-                  ? new Date(batch.createdAt).toLocaleString()
-                  : ""}
-              </time>
-
-              <button
-                type="button"
-                onClick={() => deleteBatch(batch._id)}
-                aria-label="Delete saved batch"
-              >
-                <Trash2 size={15} />
-              </button>
-            </article>
-          ))
-        ) : (
-          <p className="bulk-history-empty">No saved batches yet.</p>
-        )}
-      </section>
     </main>
   );
 }
 
 export default BulkImageProcessing;
+

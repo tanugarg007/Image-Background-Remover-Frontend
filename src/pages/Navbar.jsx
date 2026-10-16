@@ -28,10 +28,15 @@ function Navbar() {
       </a>
 
       <nav className="topbar-nav" aria-label="Main navigation">
-        <a href="#features">Features</a>
-        <a href="#how-it-works">How it works</a>
-        <a href="#pricing">Pricing</a>
-        <a href="#reviews">Reviews</a>
+        <a href="#background-removal">BG remover</a>
+        <a href="#background-changer">Backgrounds</a>
+        <a href="#image-compressor">Compressor</a>
+        <a href="#image-converter">Converter</a>
+        <a href="#image-cropper">Cropper</a>
+        <a href="#bulk-processing">Bulk</a>
+        <a href="#download-options">Downloads</a>
+        <a href="#image-analyzer">Analyzer</a>
+        <a href="#quality-controls">Quality</a>
       </nav>
 
       <div className="topbar-actions">
