@@ -172,34 +172,76 @@ function Image() {
   };
 
   // Download the processed PNG.
- const handleDownload = async () => {
-  if (!processedFilename) return;
+ 
+  // Download the processed PNG to the browser's Downloads.
+ 
+  // Download the processed PNG to the browser's Downloads.
+ 
+const handleDownload = async () => {
+  if (!processedImage || loading) return;
+
+  let downloadUrl;
+
   try {
-    const response = await fetch(
-      `http://localhost:4000/users/backgrounddownload/${encodeURIComponent(processedFilename)}`,
-      { cache: "no-store" }
-    );
+    setError("");
+    setMessage("");
+
+    const response = await fetch(processedImage, {
+      cache: "no-store",
+    });
 
     if (!response.ok) {
-      throw new Error("Image download failed");
+      throw new Error("Image download failed.");
     }
 
     const blob = await response.blob();
-    const url = URL.createObjectURL(blob);
+
+    if (blob.size === 0) {
+      throw new Error("Downloaded image is empty.");
+    }
+
+    const mimeType = blob.type.toLowerCase();
+
+    let extension = "png";
+
+    if (mimeType.includes("webp")) {
+      extension = "webp";
+    } else if (
+      mimeType.includes("jpeg") ||
+      mimeType.includes("jpg")
+    ) {
+      extension = "jpg";
+    }
+
+    downloadUrl = URL.createObjectURL(blob);
+
+    // Open the processed image in the current browser in addition to saving it.
+    // This keeps viewing in Chrome instead of handing the PNG to the OS default app.
+    window.open(downloadUrl, "_blank", "noopener,noreferrer");
 
     const link = document.createElement("a");
-    link.href = url;
-    link.download = processedFilename;
+    link.href = downloadUrl;
+    link.download = `background-removed.${extension}`;
+
     document.body.appendChild(link);
     link.click();
     link.remove();
 
-    URL.revokeObjectURL(url);
-  } catch (error) {
-    console.error(error);
-    alert(error.message || "Download failed");
+    setMessage("Image downloaded successfully!");
+
+    setTimeout(() => {
+      URL.revokeObjectURL(downloadUrl);
+    }, 60000);
+  } catch (err) {
+    setError(
+      err instanceof Error
+        ? err.message
+        : "Image download failed."
+    );
   }
 };
+
+
 
   // Start again with a new image.
   const handleReset = () => {
@@ -424,16 +466,15 @@ function Image() {
                   ? "Processing image..."
                   : "Remove background"}
               </button>
-
-              <button
-                type="button"
-                className="download-png-button"
-                onClick={handleDownload}
-                disabled={!processedImage || loading}
-              >
-                <Download aria-hidden="true" />
-                Download PNG
-              </button>
+<button
+  type="button"
+  className="download-png-button"
+  onClick={handleDownload}
+  disabled={!processedImage || loading}
+>
+  <Download aria-hidden="true" />
+  Download Image
+</button>
             </div>
 
             {message && (

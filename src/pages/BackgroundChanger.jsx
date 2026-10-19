@@ -72,6 +72,7 @@ function BackgroundChanger() {
   };
 
  
+
 const removeBackground = async () => {
   if (!file || loading) return;
 
@@ -97,13 +98,48 @@ const removeBackground = async () => {
       );
     }
 
-    const result = await response.blob();
+    const contentType = response.headers.get("content-type") || "";
+    console.log("Status:", response.status);
+console.log("Content-Type:", contentType);
 
-    if (!result.type.startsWith("image/")) {
-      throw new Error("Server did not return a processed image.");
+const responseCopy = response.clone();
+console.log("Server response:", await responseCopy.text());
+    let imageBlob;
+
+    // Case 1: Backend directly returns an image.
+    if (contentType.startsWith("image/")) {
+      imageBlob = await response.blob();
+    } else {
+      // Case 2: Backend returns JSON containing the filename.
+      const data = await response.json();
+
+      const filename = data.filename || data.data?.filename;
+
+      if (!filename) {
+        throw new Error(
+          data.message || "Backend did not return an image filename."
+        );
+      }
+
+      const imageResponse = await fetch(
+        `http://localhost:4000/users/backgrounddownload/${encodeURIComponent(
+          filename
+        )}`,
+        { cache: "no-store" }
+      );
+
+      if (!imageResponse.ok) {
+        throw new Error("Could not download the processed image.");
+      }
+
+      imageBlob = await imageResponse.blob();
     }
 
-    setCutoutUrl(URL.createObjectURL(result));
+    if (!imageBlob.type.startsWith("image/") || imageBlob.size === 0) {
+      throw new Error("The server did not return a valid image.");
+    }
+
+    setCutoutUrl(URL.createObjectURL(imageBlob));
   } catch (cause) {
     setError(
       cause instanceof Error
@@ -114,6 +150,7 @@ const removeBackground = async () => {
     setLoading(false);
   }
 };
+
 
 
  
@@ -188,18 +225,24 @@ const downloadResult = async () => {
 
     const savedImage = await downloadResponse.blob();
     const downloadUrl = URL.createObjectURL(savedImage);
-    const link = document.createElement("a");
+  // 1. Image nu nave Chrome tab vich kholo
+window.open(downloadUrl, "_blank");
 
-    link.href = downloadUrl;
-    link.download =
-      `${file.name.replace(/\.[^.]+$/, "") || "image"}-background.png`;
+// 2. Image nu download vi karo
+const link = document.createElement("a");
 
-    document.body.appendChild(link);
-    link.click();
-    link.remove();
+link.href = downloadUrl;
+link.download =
+  `${file.name.replace(/\.[^.]+$/, "") || "image"}-background.png`;
 
-    setTimeout(() => URL.revokeObjectURL(downloadUrl), 1000);
+document.body.appendChild(link);
+link.click();
+link.remove();
 
+// 3. URL nu turant delete na karo
+setTimeout(() => {
+  URL.revokeObjectURL(downloadUrl);
+}, 60000);
   } catch (cause) {
     setError(
       cause instanceof Error
