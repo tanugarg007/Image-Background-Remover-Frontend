@@ -10,7 +10,10 @@ import {
   CheckCircle2,
 } from "lucide-react";
 import "./Image.css";
-import imageCompression from "browser-image-compression";
+
+// Replace this with your actual Render backend URL.
+const API_BASE = "https://image-background-remover-backend-wa3j.onrender.com";
+
 function Image() {
   const fileInputRef = useRef(null);
 
@@ -23,7 +26,7 @@ function Image() {
   const [error, setError] = useState("");
   const [message, setMessage] = useState("");
 
-  // Release temporary image URLs when they change or component unmounts.
+  // Clean up temporary image URLs.
   useEffect(() => {
     return () => {
       if (originalImage) {
@@ -44,12 +47,12 @@ function Image() {
     setMessage("");
     setProcessedImage("");
     setProcessedFilename("");
-    setProcessedFilename("");
 
     const allowedTypes = [
       "image/png",
       "image/jpeg",
       "image/webp",
+      "image/jpg"
     ];
 
     if (!allowedTypes.includes(file.type)) {
@@ -71,7 +74,7 @@ function Image() {
     event.target.value = "";
   };
 
-  // Drag-and-drop handlers.
+  // Drag and drop.
   const handleDragOver = (event) => {
     event.preventDefault();
     setIsDragging(true);
@@ -88,23 +91,27 @@ function Image() {
     handleFile(event.dataTransfer.files?.[0]);
   };
 
-  // Send image to your local Express backend.
+  // Remove image background using the Render backend.
   const handleRemoveBackground = async () => {
-    if (!selectedFile || loading) {
-      return;
-    }
+    if (!selectedFile || loading) return;
 
     setLoading(true);
     setError("");
     setMessage("");
-    setProcessedImage("");
+
+    if (processedImage) {
+      URL.revokeObjectURL(processedImage);
+      setProcessedImage("");
+    }
+
+    setProcessedFilename("");
 
     try {
       const formData = new FormData();
       formData.append("image", selectedFile);
 
       const response = await fetch(
-        "http://localhost:4000/users/remove-background",
+        `${API_BASE}/users/remove-background`,
         {
           method: "POST",
           body: formData,
@@ -130,16 +137,29 @@ function Image() {
       }
 
       const result = await response.json();
-      if (typeof result.filename !== "string" || !result.filename) {
-        throw new Error(result.message || "The server did not provide the processed image name.");
+
+      if (
+        typeof result.filename !== "string" ||
+        !result.filename
+      ) {
+        throw new Error(
+          result.message ||
+            "The server did not provide the processed image name."
+        );
       }
 
+      // Load the processed image from the backend.
       const imageResponse = await fetch(
-        `http://localhost:4000/users/backgrounddownload/${encodeURIComponent(result.filename)}`,
+        `${API_BASE}/users/backgrounddownload/${encodeURIComponent(
+          result.filename
+        )}`,
         { cache: "no-store" }
       );
+
       if (!imageResponse.ok) {
-        throw new Error("Background was removed, but the processed image could not be loaded.");
+        throw new Error(
+          "Background was removed, but the processed image could not be loaded."
+        );
       }
 
       const imageBlob = await imageResponse.blob();
@@ -171,79 +191,30 @@ function Image() {
     }
   };
 
-  // Download the processed PNG.
- 
-  // Download the processed PNG to the browser's Downloads.
- 
-  // Download the processed PNG to the browser's Downloads.
- 
-const handleDownload = async () => {
-  if (!processedImage || loading) return;
+  // Download the processed image.
+  const handleDownload = () => {
+    if (!processedImage || loading) return;
 
-  let downloadUrl;
+    try {
+      setError("");
+      setMessage("");
 
-  try {
-    setError("");
-    setMessage("");
+      const link = document.createElement("a");
+      link.href = processedImage;
+      link.download = processedFilename || "background-removed.png";
 
-    const response = await fetch(processedImage, {
-      cache: "no-store",
-    });
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
 
-    if (!response.ok) {
-      throw new Error("Image download failed.");
+      setMessage("Image downloaded successfully!");
+    } catch (err) {
+      console.error("Download error:", err);
+      setError("Image download failed. Please try again.");
     }
+  };
 
-    const blob = await response.blob();
-
-    if (blob.size === 0) {
-      throw new Error("Downloaded image is empty.");
-    }
-
-    const mimeType = blob.type.toLowerCase();
-
-    let extension = "png";
-
-    if (mimeType.includes("webp")) {
-      extension = "webp";
-    } else if (
-      mimeType.includes("jpeg") ||
-      mimeType.includes("jpg")
-    ) {
-      extension = "jpg";
-    }
-
-    downloadUrl = URL.createObjectURL(blob);
-
-    // Open the processed image in the current browser in addition to saving it.
-    // This keeps viewing in Chrome instead of handing the PNG to the OS default app.
-    window.open(downloadUrl, "_blank", "noopener,noreferrer");
-
-    const link = document.createElement("a");
-    link.href = downloadUrl;
-    link.download = `background-removed.${extension}`;
-
-    document.body.appendChild(link);
-    link.click();
-    link.remove();
-
-    setMessage("Image downloaded successfully!");
-
-    setTimeout(() => {
-      URL.revokeObjectURL(downloadUrl);
-    }, 60000);
-  } catch (err) {
-    setError(
-      err instanceof Error
-        ? err.message
-        : "Image download failed."
-    );
-  }
-};
-
-
-
-  // Start again with a new image.
+  // Start again with another image.
   const handleReset = () => {
     setSelectedFile(null);
     setOriginalImage("");
@@ -354,7 +325,7 @@ const handleDownload = async () => {
           />
         </section>
 
-        {/* Privacy and feature information */}
+        {/* Feature information */}
         <div className="trust-row">
           <span>
             <CheckCircle2 className="check-mark" />
@@ -372,7 +343,7 @@ const handleDownload = async () => {
           </span>
         </div>
 
-        {/* Image comparison section */}
+        {/* Image comparison */}
         {selectedFile && (
           <section className="image-preview-section">
             <div className="preview-section-heading">
@@ -392,7 +363,6 @@ const handleDownload = async () => {
             </div>
 
             <div className="preview-comparison">
-              {/* Original image */}
               <article className="comparison-panel">
                 <div className="comparison-label">
                   <span>Original image</span>
@@ -409,7 +379,6 @@ const handleDownload = async () => {
                 </div>
               </article>
 
-              {/* Background removed image */}
               <article className="comparison-panel">
                 <div className="comparison-label">
                   <span>Background removed</span>
@@ -453,7 +422,7 @@ const handleDownload = async () => {
               </article>
             </div>
 
-            {/* Actions */}
+            {/* Action buttons */}
             <div className="image-actions">
               <button
                 type="button"
@@ -466,15 +435,16 @@ const handleDownload = async () => {
                   ? "Processing image..."
                   : "Remove background"}
               </button>
-<button
-  type="button"
-  className="download-png-button"
-  onClick={handleDownload}
-  disabled={!processedImage || loading}
->
-  <Download aria-hidden="true" />
-  Download Image
-</button>
+
+              <button
+                type="button"
+                className="download-png-button"
+                onClick={handleDownload}
+                disabled={!processedImage || loading}
+              >
+                <Download aria-hidden="true" />
+                Download Image
+              </button>
             </div>
 
             {message && (

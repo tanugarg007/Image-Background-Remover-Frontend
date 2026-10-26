@@ -4,10 +4,18 @@ import imageCompression from "browser-image-compression";
 import { Upload, Download } from "lucide-react";
 import "./compressor.css";
 
+const API_BASE = `${
+  import.meta.env.VITE_API_BASE_URL ||
+  (import.meta.env.DEV
+    ? "http://localhost:4000"
+    : "https://image-background-remover-backend-wa3j.onrender.com")
+}/users`;
+
 function ImageCompressor() {
   const [original, setOriginal] = useState(null);
   const [compressed, setCompressed] = useState(null);
   const [loading, setLoading] = useState(false);
+  const [downloading, setDownloading] = useState(false);
   const [error, setError] = useState("");
   const [quality, setQuality] = useState(80);
   const [maxDimension, setMaxDimension] = useState("1920");
@@ -19,12 +27,16 @@ function ImageCompressor() {
 
   const previewUrlRef = useRef("");
   const compressedUrlRef = useRef("");
+  const compressionRequestRef = useRef(false);
+  const downloadRequestRef = useRef(false);
 
+  // Cleanup only; no API calls here.
   useEffect(() => {
     return () => {
       if (previewUrlRef.current) {
         URL.revokeObjectURL(previewUrlRef.current);
       }
+
       if (compressedUrlRef.current) {
         URL.revokeObjectURL(compressedUrlRef.current);
       }
@@ -52,6 +64,14 @@ function ImageCompressor() {
       image.src = url;
     });
 
+  const formatSize = (bytes) => {
+    if (bytes < 1024 * 1024) {
+      return `${(bytes / 1024).toFixed(2)} KB`;
+    }
+
+    return `${(bytes / (1024 * 1024)).toFixed(2)} MB`;
+  };
+
   const handleFileSelect = async (file) => {
     if (!file) return;
 
@@ -76,22 +96,25 @@ function ImageCompressor() {
       compressedUrlRef.current = "";
     }
 
+    setCompressedUrl("");
+
     const url = URL.createObjectURL(file);
     previewUrlRef.current = url;
     setPreviewUrl(url);
-    setCompressedUrl("");
 
     try {
       const dimensions = await getDimensions(file);
       setOriginalDimensions(dimensions);
     } catch (err) {
-      console.error(err);
+      console.error("Image dimensions error:", err);
       setError("Unable to read this image.");
     }
   };
 
+  // This function runs only when the Compress button is clicked.
   const handleCompress = async () => {
-    if (!original || loading) return;
+      console.log("COMPRESS BUTTON HANDLER CALLED");
+    if (!original || compressionRequestRef.current) return;
 
     const dimension = Number(maxDimension);
 
@@ -104,10 +127,14 @@ function ImageCompressor() {
       return;
     }
 
-    setError("");
+    compressionRequestRef.current = true;
     setLoading(true);
+    setError("");
+
+    let newUrl = "";
 
     try {
+      // Compress locally in the browser.
       const result = await imageCompression(original, {
         maxSizeMB: 10,
         maxWidthOrHeight: dimension,
@@ -116,116 +143,144 @@ function ImageCompressor() {
       });
 
       const dimensions = await getDimensions(result);
+      newUrl = URL.createObjectURL(result);
 
-      const newUrl = URL.createObjectURL(result);
+      const outputExtension =
+        result.type === "image/png"
+          ? ".png"
+          : result.type === "image/webp"
+            ? ".webp"
+            : ".jpg";
+
+      const baseName = original.name.replace(/\.[^.]+$/, "");
 
       const formData = new FormData();
-      const outputExtension = result.type === "image/png" ? ".png" : result.type === "image/webp" ? ".webp" : ".jpg";
-      formData.append("image", result, original.name.replace(/\.[^.]+$/, outputExtension));
+      formData.append("image", result, `${baseName}${outputExtension}`);
       formData.append("url", original.name);
       formData.append("quality", String(quality));
       formData.append("width", String(dimensions.width));
       formData.append("height", String(dimensions.height));
       formData.append("originalSize", String(original.size));
       formData.append("compressedSize", String(result.size));
-      formData.append("reducedSize", String(Math.max(0, original.size - result.size)));
-
-      const response = await fetch(
-        "http://localhost:4000/users/image-compresser",
-        {
-          method: "POST",
-          body: formData,
-        }
+      formData.append(
+        "reducedSize",
+        String(Math.max(0, original.size - result.size))
       );
 
+      // The backend POST occurs only from this button handler.
+      const response = await fetch(`${API_BASE}/image-compresser`, {
+        method: "POST",
+        body: formData,
+      });
+
       const responseData = await response.json().catch(() => ({}));
+
       if (!response.ok) {
-        URL.revokeObjectURL(newUrl);
         throw new Error(
-          responseData.message || responseData.error || "Image compression failed."
+          [responseData.message, responseData.detail].filter(Boolean).join(": ") ||
+            responseData.error ||
+            "Image compression failed."
         );
       }
 
       if (compressedUrlRef.current) {
         URL.revokeObjectURL(compressedUrlRef.current);
       }
+
       compressedUrlRef.current = newUrl;
+      newUrl = "";
 
       setCompressed(result);
-      setCompressionId(responseData.data?._id || "");
-      setCompressedUrl(newUrl);
+      setCompressedUrl(compressedUrlRef.current);
       setCompressedDimensions(dimensions);
+      setCompressionId(responseData.data?._id || "");
 
+      if (!responseData.data?._id) {
+        setError(
+          "Image compressed, but the server did not return a record ID. Local preview is available, but server download is unavailable."
+        );
+      }
     } catch (err) {
       console.error("Compression error:", err);
+
       setError(
         err instanceof Error
           ? err.message
           : "Compression failed. Please try another image."
       );
     } finally {
+      if (newUrl) URL.revokeObjectURL(newUrl);
+
+      compressionRequestRef.current = false;
       setLoading(false);
     }
   };
 
-  
+  // This function runs only when the Download button is clicked.
+  const downloadImage = async () => {
+    console.log("DOWNLOAD BUTTON HANDLER CALLED");
 
-const downloadImage = async () => {
-  if (!compressionId) {
-    setError("Please compress the image first.");
-    return;
-  }
+    if (!compressionId || !original || downloadRequestRef.current) {
+      if (!compressionId) {
+        setError("Please compress the image first.");
+      }
+      return;
+    }
 
-  try {
+    downloadRequestRef.current = true;
+    setDownloading(true);
     setError("");
 
-    const response = await fetch(
-      `http://localhost:4000/users/image-compresser/${compressionId}/download`,
-      { cache: "no-store" }
-    );
+    let downloadUrl = "";
 
-    if (!response.ok) {
-      const data = await response.json().catch(() => ({}));
-
-      throw new Error(
-        data.message || "Unable to download compressed image."
+    try {
+      const response = await fetch(
+        `${API_BASE}/downloadimage/${encodeURIComponent(compressionId)}`,
+        { cache: "no-store" }
       );
+
+      if (!response.ok) {
+        const data = await response.json().catch(() => ({}));
+
+        throw new Error(
+          data.message || "Unable to download compressed image."
+        );
+      }
+
+      const blob = await response.blob();
+      downloadUrl = URL.createObjectURL(blob);
+
+      const baseName = original.name.replace(/\.[^.]+$/, "");
+      const extension =
+        compressed?.type === "image/png"
+          ? ".png"
+          : compressed?.type === "image/webp"
+            ? ".webp"
+            : ".jpg";
+
+      const link = document.createElement("a");
+      link.href = downloadUrl;
+      link.download = `compressed-${baseName}${extension}`;
+
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+    } catch (err) {
+      console.error("Download error:", err);
+
+      setError(
+        err instanceof Error ? err.message : "Download failed."
+      );
+    } finally {
+      if (downloadUrl) {
+        window.setTimeout(() => {
+          URL.revokeObjectURL(downloadUrl);
+        }, 1000);
+      }
+
+      downloadRequestRef.current = false;
+      setDownloading(false);
     }
-
-    const blob = await response.blob();
-    const downloadUrl = URL.createObjectURL(blob);
-    const link = document.createElement("a");
-
-    link.href = downloadUrl;
-    link.download = `compressed-${original.name.replace(
-      /\.[^.]+$/,
-      ""
-    )}`;
-
-    document.body.appendChild(link);
-    link.click();
-    link.remove();
-
-    window.setTimeout(() => {
-      URL.revokeObjectURL(downloadUrl);
-    }, 1000);
-  } catch (err) {
-    console.error("Download error:", err);
-
-    setError(
-      err instanceof Error
-        ? err.message
-        : "Download failed."
-    );
-  }
-};
-
-  const formatSize = (bytes) => {
-    if (bytes < 1024 * 1024) {
-      return `${(bytes / 1024).toFixed(2)} KB`;
-    }
-
-    return `${(bytes / (1024 * 1024)).toFixed(2)} MB`;
   };
 
   const savedPercent =
@@ -236,7 +291,10 @@ const downloadImage = async () => {
   return (
     <main className="compressor-page">
       <h1>Image Compressor</h1>
-      <p>Reduce image size and dimensions while maintaining good quality.</p>
+
+      <p>
+        Reduce image size and dimensions while maintaining good quality.
+      </p>
 
       <div className="compressor-settings">
         <label className="compressor-setting" htmlFor="compressor-quality">
@@ -255,11 +313,14 @@ const downloadImage = async () => {
           />
 
           <span className="compressor-setting-hint">
-            Lower quality may reduce file size. Click Compress Again to apply.
+            Lower quality may reduce file size. Compress again to apply.
           </span>
         </label>
 
-        <label className="compressor-setting" htmlFor="compressor-dimension">
+        <label
+          className="compressor-setting"
+          htmlFor="compressor-dimension"
+        >
           <span>Maximum dimension (pixels)</span>
 
           <input
@@ -277,7 +338,9 @@ const downloadImage = async () => {
         </label>
       </div>
 
-      <label className={`compressor-upload${original ? " has-image" : ""}`}>
+      <label
+        className={`compressor-upload${original ? " has-image" : ""}`}
+      >
         {previewUrl ? (
           <>
             <img
@@ -285,9 +348,11 @@ const downloadImage = async () => {
               src={previewUrl}
               alt="Original image preview"
             />
+
             <span className="compressor-selected-name">
               {original.name}
             </span>
+
             <span className="compressor-change-image">
               Choose a different image
             </span>
@@ -344,7 +409,9 @@ const downloadImage = async () => {
             <div>
               <h3>Original Image</h3>
               <img src={previewUrl} alt="Original image" />
+
               <p>Size: {formatSize(original.size)}</p>
+
               <p>
                 Dimensions: {originalDimensions?.width} ×{" "}
                 {originalDimensions?.height} px
@@ -354,7 +421,9 @@ const downloadImage = async () => {
             <div>
               <h3>Compressed Image</h3>
               <img src={compressedUrl} alt="Compressed image" />
+
               <p>Size: {formatSize(compressed.size)}</p>
+
               <p>
                 Dimensions: {compressedDimensions?.width} ×{" "}
                 {compressedDimensions?.height} px
@@ -373,10 +442,10 @@ const downloadImage = async () => {
             className="compressor-action"
             type="button"
             onClick={downloadImage}
-            disabled={!compressionId}
+            disabled={!compressionId || downloading}
           >
             <Download size={18} />
-            Download Compressed Image
+            {downloading ? "Downloading..." : "Download Compressed Image"}
           </button>
         </section>
       )}

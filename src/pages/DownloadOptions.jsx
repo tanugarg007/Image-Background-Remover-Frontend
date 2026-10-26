@@ -13,16 +13,41 @@ import {
 } from "lucide-react";
 import "./DownloadOptions.css";
 
-const API_BASE = "http://localhost:4000/users";
+// Deployed Render backend URL
+const API_BASE = `${
+  import.meta.env.VITE_API_BASE_URL ||
+  (import.meta.env.DEV
+    ? "http://localhost:4000"
+    : "https://image-background-remover-backend-wa3j.onrender.com")
+}/users`;
+
 const MAX_FILE_SIZE = 20 * 1024 * 1024;
 const MAX_FILES = 20;
 
 function formatBytes(bytes = 0) {
   if (bytes < 1024) return `${bytes} B`;
+
   if (bytes < 1024 * 1024) {
     return `${(bytes / 1024).toFixed(1)} KB`;
   }
+
   return `${(bytes / (1024 * 1024)).toFixed(2)} MB`;
+}
+
+async function readResponse(response) {
+  const contentType = response.headers.get("content-type") || "";
+
+  if (contentType.includes("application/json")) {
+    return response.json();
+  }
+
+  const text = await response.text();
+
+  if (!response.ok) {
+    throw new Error(text || `Request failed (${response.status}).`);
+  }
+
+  return {};
 }
 
 function DownloadOptions() {
@@ -42,9 +67,6 @@ function DownloadOptions() {
   const [historyLoading, setHistoryLoading] = useState(false);
 
   useEffect(() => {
-    urlsRef.current.forEach((url) => URL.revokeObjectURL(url));
-    urlsRef.current.clear();
-
     return () => {
       urlsRef.current.forEach((url) => URL.revokeObjectURL(url));
       urlsRef.current.clear();
@@ -57,7 +79,7 @@ function DownloadOptions() {
       setHistoryLoading(true);
 
       const response = await fetch(`${API_BASE}/getdownload`);
-      const result = await response.json();
+      const result = await readResponse(response);
 
       if (!response.ok) {
         throw new Error(result.message || "Failed to load history.");
@@ -94,8 +116,8 @@ function DownloadOptions() {
     setMessage("");
 
     setFiles((current) => {
-      const slots = MAX_FILES - current.length;
-      const toAdd = accepted.slice(0, Math.max(0, slots));
+      const slots = Math.max(0, MAX_FILES - current.length);
+      const toAdd = accepted.slice(0, slots);
 
       const newEntries = toAdd.map((file) => {
         const url = URL.createObjectURL(file);
@@ -115,10 +137,12 @@ function DownloadOptions() {
       return [...current, ...newEntries];
     });
 
-    if (inputRef.current) inputRef.current.value = "";
+    if (inputRef.current) {
+      inputRef.current.value = "";
+    }
   };
 
-  // Remove one image from the frontend queue only
+  // Remove one image from the frontend queue
   const removeFile = (id) => {
     const removed = files.find((entry) => entry.id === id);
 
@@ -132,7 +156,7 @@ function DownloadOptions() {
     setMessage("");
   };
 
-  // Clear the frontend queue only
+  // Clear the frontend queue
   const clearFiles = () => {
     files.forEach(({ url }) => {
       URL.revokeObjectURL(url);
@@ -149,6 +173,7 @@ function DownloadOptions() {
     const link = document.createElement("a");
     link.href = entry.url;
     link.download = entry.file.name;
+
     document.body.appendChild(link);
     link.click();
     link.remove();
@@ -167,7 +192,10 @@ function DownloadOptions() {
       setMessage("");
 
       const formData = new FormData();
-      files.forEach(({ file }) => formData.append("files", file));
+
+      files.forEach(({ file }) => {
+        formData.append("files", file);
+      });
 
       const response = await fetch(`${API_BASE}/downloadzip`, {
         method: "POST",
@@ -176,12 +204,14 @@ function DownloadOptions() {
 
       if (!response.ok) {
         let errorMessage = "ZIP download failed.";
+
         try {
           const result = await response.json();
           errorMessage = result.message || errorMessage;
         } catch {
-          // The server may return a non-JSON error.
+          // Response may not contain JSON.
         }
+
         throw new Error(errorMessage);
       }
 
@@ -197,6 +227,7 @@ function DownloadOptions() {
       const link = document.createElement("a");
       link.href = url;
       link.download = `images-${Date.now()}.zip`;
+
       document.body.appendChild(link);
       link.click();
       link.remove();
@@ -208,7 +239,7 @@ function DownloadOptions() {
 
       setMessage("ZIP download started successfully.");
 
-      // Refresh history after backend creates the record.
+      // Refresh history after the backend creates the record.
       await fetchHistory();
     } catch (err) {
       setError(err.message || "Something went wrong.");
@@ -217,12 +248,13 @@ function DownloadOptions() {
     }
   };
 
-  // GET: Fetch details for one MongoDB history record
+  // GET: Fetch details for one history record
   const getDownloadDetails = async (id) => {
     try {
       setError("");
+
       const response = await fetch(`${API_BASE}/getdownload/${id}`);
-      const result = await response.json();
+      const result = await readResponse(response);
 
       if (!response.ok) {
         throw new Error(result.message || "Failed to load details.");
@@ -234,7 +266,7 @@ function DownloadOptions() {
     }
   };
 
-  // PUT: Update the saved ZIP history name
+  // PATCH: Update saved ZIP history name
   const updateDownload = async (id) => {
     if (!editName.trim()) {
       setError("Please enter a ZIP name.");
@@ -246,11 +278,15 @@ function DownloadOptions() {
 
       const response = await fetch(`${API_BASE}/updatedownload/${id}`, {
         method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ zipName: editName.trim() }),
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          zipName: editName.trim(),
+        }),
       });
 
-      const result = await response.json();
+      const result = await readResponse(response);
 
       if (!response.ok) {
         throw new Error(result.message || "Update failed.");
@@ -270,9 +306,11 @@ function DownloadOptions() {
     }
   };
 
-  // DELETE: Delete a MongoDB history record
+  // DELETE: Delete a history record
   const deleteDownload = async (id) => {
-    if (!window.confirm("Delete this download history record?")) return;
+    if (!window.confirm("Delete this download history record?")) {
+      return;
+    }
 
     try {
       setError("");
@@ -281,7 +319,7 @@ function DownloadOptions() {
         method: "DELETE",
       });
 
-      const result = await response.json();
+      const result = await readResponse(response);
 
       if (!response.ok) {
         throw new Error(result.message || "Delete failed.");
@@ -308,9 +346,11 @@ function DownloadOptions() {
           <span className="download-page-kicker">
             <ArrowDownToLine size={14} /> YOUR FILES, YOUR WAY
           </span>
+
           <h1>
             Downloads, <span>made simple.</span>
           </h1>
+
           <p>
             Choose images, download them individually, or bundle them into a ZIP.
           </p>
@@ -322,11 +362,13 @@ function DownloadOptions() {
               <span className="download-workspace-icon">
                 <ImagePlus size={18} />
               </span>
+
               <div>
                 <strong>Your download queue</strong>
                 <small>Up to 20 MB per image · Maximum 20 images</small>
               </div>
             </div>
+
             <span className="download-file-count">
               {files.length} {files.length === 1 ? "image" : "images"}
             </span>
@@ -353,10 +395,12 @@ function DownloadOptions() {
                 <span className="download-upload-icon">
                   <Upload size={18} />
                 </span>
+
                 <span className="download-drop-copy">
                   <strong>Choose images</strong>
                   <small>Drop them here or browse your device</small>
                 </span>
+
                 <span className="download-browse">
                   <ImagePlus size={14} /> Browse files
                 </span>
@@ -377,13 +421,19 @@ function DownloadOptions() {
                   {files.map((entry) => (
                     <article className="download-file-row" key={entry.id}>
                       <img src={entry.url} alt="" />
+
                       <div className="download-file-info">
-                        <strong title={entry.file.name}>{entry.file.name}</strong>
+                        <strong title={entry.file.name}>
+                          {entry.file.name}
+                        </strong>
+
                         <small>
                           {formatBytes(entry.file.size)} ·{" "}
-                          {entry.file.type.split("/")[1]?.toUpperCase() || "IMAGE"}
+                          {entry.file.type.split("/")[1]?.toUpperCase() ||
+                            "IMAGE"}
                         </small>
                       </div>
+
                       <button
                         className="download-row-action"
                         type="button"
@@ -393,6 +443,7 @@ function DownloadOptions() {
                       >
                         <ArrowDownToLine size={16} />
                       </button>
+
                       <button
                         className="download-row-action remove"
                         type="button"
@@ -413,18 +464,42 @@ function DownloadOptions() {
                 </div>
               )}
 
-              {error && <p className="download-error" role="alert">{error}</p>}
-              {message && <p className="download-success" role="status">{message}</p>}
+              {error && (
+                <p className="download-error" role="alert">
+                  {error}
+                </p>
+              )}
+
+              {message && (
+                <p className="download-success" role="status">
+                  {message}
+                </p>
+              )}
             </section>
 
             <aside className="download-choice-card">
               <span className="download-choice-kicker">BULK DOWNLOAD</span>
-              <span className="download-archive-mark"><Archive size={22} /></span>
-              <h2>Everything,<br />together.</h2>
+
+              <span className="download-archive-mark">
+                <Archive size={22} />
+              </span>
+
+              <h2>
+                Everything,
+                <br />
+                together.
+              </h2>
+
               <p>
                 Bundle {files.length || "your"}{" "}
-                {files.length ? (files.length === 1 ? "image" : "images") : "images"} into one ZIP file.
+                {files.length
+                  ? files.length === 1
+                    ? "image"
+                    : "images"
+                  : "images"}{" "}
+                into one ZIP file.
               </p>
+
               <button
                 className="download-zip-button"
                 type="button"
@@ -436,14 +511,20 @@ function DownloadOptions() {
                 ) : (
                   <Archive size={16} />
                 )}
-                <span>{zipping ? "Preparing your ZIP…" : "Download as ZIP"}</span>
+
+                <span>
+                  {zipping ? "Preparing your ZIP…" : "Download as ZIP"}
+                </span>
+
                 {!zipping && files.length > 0 && (
                   <span className="download-zip-count">{files.length}</span>
                 )}
               </button>
+
               <div className="download-choice-footnote">
                 <CheckCircle2 size={13} /> Original filenames preserved
               </div>
+
               {files.length > 0 && (
                 <button
                   className="download-clear"
@@ -458,7 +539,7 @@ function DownloadOptions() {
           </div>
         </section>
 
-        {/* Download history: GET, PUT, DELETE APIs */}
+        {/* Download history: GET, PATCH and DELETE APIs */}
         <section className="download-history">
           <h2>Download History</h2>
 
@@ -477,7 +558,10 @@ function DownloadOptions() {
                 </p>
               </div>
 
-              <button type="button" onClick={() => getDownloadDetails(item._id)}>
+              <button
+                type="button"
+                onClick={() => getDownloadDetails(item._id)}
+              >
                 Details
               </button>
 
@@ -493,7 +577,10 @@ function DownloadOptions() {
                 Edit
               </button>
 
-              <button type="button" onClick={() => deleteDownload(item._id)}>
+              <button
+                type="button"
+                onClick={() => deleteDownload(item._id)}
+              >
                 Delete
               </button>
 
@@ -504,9 +591,15 @@ function DownloadOptions() {
                     onChange={(event) => setEditName(event.target.value)}
                     placeholder="Enter ZIP name"
                   />
-                  <button className="download-history-save" type="button" onClick={() => updateDownload(item._id)}>
+
+                  <button
+                    className="download-history-save"
+                    type="button"
+                    onClick={() => updateDownload(item._id)}
+                  >
                     Save
                   </button>
+
                   <button
                     className="download-history-cancel"
                     type="button"
@@ -537,7 +630,10 @@ function DownloadOptions() {
                 ))}
               </ul>
 
-              <button type="button" onClick={() => setSelectedDownload(null)}>
+              <button
+                type="button"
+                onClick={() => setSelectedDownload(null)}
+              >
                 Close Details
               </button>
             </div>

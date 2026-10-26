@@ -2,7 +2,12 @@
 import { useEffect, useState } from "react";
 import "./ImageQualityControls.css";
 
-const API_BASE = "http://localhost:4000/users";
+const API_BASE = `${
+  import.meta.env.VITE_API_BASE_URL ||
+  (import.meta.env.DEV
+    ? "http://localhost:4000"
+    : "https://image-background-remover-backend-wa3j.onrender.com")
+}/users`;
 
 const formats = {
   WEBP: "image/webp",
@@ -33,33 +38,39 @@ function getFileBaseName(name = "") {
   return name.replace(/\.[^.]+$/, "");
 }
 
+async function readResponse(response) {
+  const result = await response.json().catch(() => ({}));
+
+  if (!response.ok || result.success === false) {
+    throw new Error(result.message || "Request failed.");
+  }
+
+  return result;
+}
+
 function ImageQualityControls() {
-  // Image states
   const [file, setFile] = useState(null);
   const [sourceUrl, setSourceUrl] = useState("");
   const [outputUrl, setOutputUrl] = useState("");
   const [outputBlob, setOutputBlob] = useState(null);
 
-  // Compression settings
   const [format, setFormat] = useState("WEBP");
   const [quality, setQuality] = useState(82);
   const [maxWidth, setMaxWidth] = useState(0);
+
   const [dimensions, setDimensions] = useState({
     width: 0,
     height: 0,
   });
 
-  // History and selected record
   const [history, setHistory] = useState([]);
   const [selectedRecord, setSelectedRecord] = useState(null);
 
-  // Update form
   const [showUpdateForm, setShowUpdateForm] = useState(false);
   const [updateFormData, setUpdateFormData] = useState({
     ...initialUpdateData,
   });
 
-  // UI states
   const [apiLoading, setApiLoading] = useState(false);
   const [error, setError] = useState("");
   const [message, setMessage] = useState("");
@@ -82,37 +93,27 @@ function ImageQualityControls() {
         ? "Balanced"
         : "High quality";
 
-  // Load history from backend
+  // Load saved compression history.
   const loadHistory = async () => {
     try {
-      const response = await fetch(
-        `${API_BASE}/compress-image`,
-        {
-          method: "GET",
-          cache: "no-store",
-        }
-      );
+      const response = await fetch(`${API_BASE}/compress-image`, {
+        method: "GET",
+        cache: "no-store",
+      });
 
-      const result = await response.json();
-
-      if (!response.ok) {
-        throw new Error(
-          result.message || "Could not load compression history."
-        );
-      }
+      const result = await readResponse(response);
 
       setHistory(Array.isArray(result.data) ? result.data : []);
     } catch (err) {
-      setError(err.message || "Could not load history.");
+      setError(err.message || "Could not load compression history.");
     }
   };
 
-  // Load history when page opens
   useEffect(() => {
     loadHistory();
   }, []);
 
-  // Select image
+  // Select an image.
   const chooseFile = (event) => {
     const selectedFile = event.target.files?.[0];
 
@@ -138,11 +139,11 @@ function ImageQualityControls() {
     setFile(selectedFile);
   };
 
-  // Original image preview
+  // Original image preview.
   useEffect(() => {
     if (!file) {
       setSourceUrl("");
-      return;
+      return undefined;
     }
 
     const url = URL.createObjectURL(file);
@@ -151,13 +152,13 @@ function ImageQualityControls() {
     return () => URL.revokeObjectURL(url);
   }, [file]);
 
-  // Compress image in browser
+  // Compress the image in the browser.
   useEffect(() => {
     if (!file) {
       setOutputBlob(null);
       setOutputUrl("");
       setDimensions({ width: 0, height: 0 });
-      return;
+      return undefined;
     }
 
     let cancelled = false;
@@ -198,7 +199,7 @@ function ImageQualityControls() {
           throw new Error("Unable to process this image.");
         }
 
-        // JPG does not support transparency
+        // JPG does not support transparency.
         if (format === "JPG") {
           context.fillStyle = "#ffffff";
           context.fillRect(0, 0, width, height);
@@ -209,11 +210,12 @@ function ImageQualityControls() {
         const blob = await new Promise((resolve, reject) => {
           canvas.toBlob(
             (result) => {
-              if (result) {
-                resolve(result);
-              } else {
+              if (!result || result.size === 0) {
                 reject(new Error("Image compression failed."));
+                return;
               }
+
+              resolve(result);
             },
             formats[format],
             format === "PNG" ? undefined : quality / 100
@@ -235,9 +237,7 @@ function ImageQualityControls() {
         setOutputUrl(generatedUrl);
       } catch (err) {
         if (!cancelled) {
-          setError(
-            err.message || "Unable to compress this image."
-          );
+          setError(err.message || "Unable to compress this image.");
         }
       } finally {
         bitmap?.close();
@@ -255,7 +255,7 @@ function ImageQualityControls() {
     };
   }, [file, format, quality, maxWidth]);
 
-  // Save compressed image and its details
+  // Save the compressed image and metadata.
   const saveCompression = async () => {
     if (!file || !outputBlob) {
       setError("Please select an image and wait for compression.");
@@ -283,21 +283,12 @@ function ImageQualityControls() {
       formData.append("originalSize", String(file.size));
       formData.append("compressedSize", String(outputBlob.size));
 
-      const response = await fetch(
-        `${API_BASE}/compress-image`,
-        {
-          method: "POST",
-          body: formData,
-        }
-      );
+      const response = await fetch(`${API_BASE}/compress-image`, {
+        method: "POST",
+        body: formData,
+      });
 
-      const result = await response.json();
-
-      if (!response.ok || result.success === false) {
-        throw new Error(
-          result.message || "Failed to save compression."
-        );
-      }
+      const result = await readResponse(response);
 
       if (result.data) {
         setSelectedRecord(result.data);
@@ -313,7 +304,7 @@ function ImageQualityControls() {
     }
   };
 
-  // View record details
+  // View a saved record.
   const viewRecord = async (id) => {
     try {
       setApiLoading(true);
@@ -328,12 +319,10 @@ function ImageQualityControls() {
         }
       );
 
-      const result = await response.json();
+      const result = await readResponse(response);
 
-      if (!response.ok || result.success === false || !result.data) {
-        throw new Error(
-          result.message || "Could not load record details."
-        );
+      if (!result.data) {
+        throw new Error("Could not load record details.");
       }
 
       setSelectedRecord(result.data);
@@ -346,7 +335,7 @@ function ImageQualityControls() {
     }
   };
 
-  // Open editable form
+  // Open the update form.
   const handleUpdateClick = () => {
     if (!selectedRecord) {
       setError("Please select a record by clicking View.");
@@ -367,7 +356,7 @@ function ImageQualityControls() {
     setShowUpdateForm(true);
   };
 
-  // Save updated record to backend
+  // Update saved record metadata.
   const updateImage = async (event) => {
     event.preventDefault();
 
@@ -406,34 +395,24 @@ function ImageQualityControls() {
         }
       );
 
-      const result = await response.json();
+      const result = await readResponse(response);
 
-      if (!response.ok || result.success === false) {
-        throw new Error(result.message || "Update failed.");
-      }
-
-      // Prefer the record returned by the backend
       let updatedRecord = result.data;
 
-      // If the backend doesn't return data, reload this record
       if (!updatedRecord) {
         const refreshResponse = await fetch(
           `${API_BASE}/compress-image/${selectedRecord._id}`,
           { cache: "no-store" }
         );
 
-        const refreshResult = await refreshResponse.json();
-
-        if (!refreshResponse.ok || !refreshResult.data) {
-          throw new Error(
-            "Update may have succeeded, but refreshed details could not be loaded."
-          );
-        }
-
+        const refreshResult = await readResponse(refreshResponse);
         updatedRecord = refreshResult.data;
       }
 
-      setSelectedRecord(updatedRecord);
+      if (updatedRecord) {
+        setSelectedRecord(updatedRecord);
+      }
+
       setShowUpdateForm(false);
       setMessage(result.message || "Record updated successfully.");
 
@@ -445,7 +424,7 @@ function ImageQualityControls() {
     }
   };
 
-  // Delete record
+  // Delete a saved record.
   const deleteRecord = async (id) => {
     if (!window.confirm("Are you sure you want to delete this record?")) {
       return;
@@ -461,11 +440,7 @@ function ImageQualityControls() {
         { method: "DELETE" }
       );
 
-      const result = await response.json();
-
-      if (!response.ok || result.success === false) {
-        throw new Error(result.message || "Delete failed.");
-      }
+      const result = await readResponse(response);
 
       if (selectedRecord?._id === id) {
         setSelectedRecord(null);
@@ -481,7 +456,7 @@ function ImageQualityControls() {
     }
   };
 
-  // Download saved image
+  // Download a saved image.
   const downloadSavedImage = async (
     id,
     imageName = "optimized-image",
@@ -503,15 +478,19 @@ function ImageQualityControls() {
           const result = await response.json();
           errorMessage = result.message || errorMessage;
         } catch {
-          // Response was not JSON
+          // Response may not contain JSON.
         }
 
         throw new Error(errorMessage);
       }
 
       const blob = await response.blob();
-      const url = URL.createObjectURL(blob);
 
+      if (!blob.size) {
+        throw new Error("The downloaded image is empty.");
+      }
+
+      const url = URL.createObjectURL(blob);
       const extension =
         outputFormat === "JPG"
           ? "jpg"
@@ -525,7 +504,7 @@ function ImageQualityControls() {
       link.click();
       link.remove();
 
-      URL.revokeObjectURL(url);
+      setTimeout(() => URL.revokeObjectURL(url), 1000);
       setMessage("Download started.");
     } catch (err) {
       setError(err.message || "Download failed.");
@@ -590,10 +569,7 @@ function ImageQualityControls() {
               <section className="quality-controls">
                 <h3>Output Settings</h3>
 
-                <label htmlFor="quality-format">
-                  Output Format
-                </label>
-
+                <label htmlFor="quality-format">Output Format</label>
                 <select
                   id="quality-format"
                   value={format}
@@ -622,29 +598,18 @@ function ImageQualityControls() {
                 />
 
                 <div className="quality-presets">
-                  <button
-                    type="button"
-                    onClick={() => setQuality(45)}
-                  >
+                  <button type="button" onClick={() => setQuality(45)}>
                     Compact
                   </button>
-
-                  <button
-                    type="button"
-                    onClick={() => setQuality(72)}
-                  >
+                  <button type="button" onClick={() => setQuality(72)}>
                     Balanced
                   </button>
-
-                  <button
-                    type="button"
-                    onClick={() => setQuality(90)}
-                  >
+                  <button type="button" onClick={() => setQuality(90)}>
                     High Quality
                   </button>
                 </div>
 
-                <p>{level} preset</p>
+                <p>{format === "PNG" ? "Lossless PNG" : `${level} preset`}</p>
 
                 <label htmlFor="quality-width">
                   Maximum Width (pixels)
@@ -659,9 +624,7 @@ function ImageQualityControls() {
                   value={maxWidth || ""}
                   onChange={(event) => {
                     const value = Number(event.target.value);
-                    setMaxWidth(
-                      Math.min(12000, Math.max(0, value || 0))
-                    );
+                    setMaxWidth(Math.min(12000, Math.max(0, value || 0)));
                   }}
                 />
 
@@ -701,9 +664,7 @@ function ImageQualityControls() {
           <section className="quality-history">
             <h2>Saved Compression History</h2>
 
-            {history.length === 0 && (
-              <p>No saved records yet.</p>
-            )}
+            {history.length === 0 && <p>No saved records yet.</p>}
 
             {history.map((record) => (
               <div className="history-item" key={record._id}>
@@ -779,41 +740,32 @@ function ImageQualityControls() {
                     <span>Image Name</span>
                     <strong>{selectedRecord.imageName}</strong>
                   </div>
-
                   <div>
                     <span>Output Format</span>
                     <strong>{selectedRecord.outputFormat}</strong>
                   </div>
-
                   <div>
                     <span>Quality</span>
                     <strong>{selectedRecord.quality}%</strong>
                   </div>
-
                   <div>
                     <span>Dimensions</span>
                     <strong>
                       {selectedRecord.width} × {selectedRecord.height} px
                     </strong>
                   </div>
-
                   <div>
                     <span>Original Size</span>
                     <strong>{formatBytes(selectedRecord.originalSize)}</strong>
                   </div>
-
                   <div>
                     <span>Compressed Size</span>
-                    <strong>
-                      {formatBytes(selectedRecord.compressedSize)}
-                    </strong>
+                    <strong>{formatBytes(selectedRecord.compressedSize)}</strong>
                   </div>
-
                   <div>
                     <span>Size Reduced</span>
                     <strong>{selectedRecord.reducedSize}%</strong>
                   </div>
-
                   <div>
                     <span>Maximum Width</span>
                     <strong>{selectedRecord.maxWidth || 0} px</strong>
@@ -982,8 +934,8 @@ function ImageQualityControls() {
         </section>
 
         <footer className="quality-footnote">
-          Images are compressed in your browser. Saving to history
-          uploads the compressed image and its metadata to your server.
+          Images are compressed in your browser. Saving to history uploads
+          the compressed image and its metadata to your server.
         </footer>
       </div>
     </main>
