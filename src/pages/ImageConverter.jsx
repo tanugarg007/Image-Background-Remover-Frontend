@@ -10,8 +10,12 @@ import {
 
 import "./ImageConverter.css";
 
-const API_BASE =
-  "https://image-background-remover-backend-wa3j.onrender.com/users";
+const API_BASE = `${
+  import.meta.env.VITE_API_BASE_URL ||
+  (import.meta.env.DEV
+    ? "http://localhost:4000"
+    : "https://image-background-remover-backend-wa3j.onrender.com")
+}/users`;
 
 const formats = {
   PNG: "image/png",
@@ -150,7 +154,7 @@ function ImageConverter() {
       formData.append("height", String(imageBitmap.height));
       formData.append("quality", String(quality));
 
-      // Save the converted image through the Render backend.
+      // Save the converted image through the configured backend.
       const response = await fetch(
         `${API_BASE}/image-converter`,
         {

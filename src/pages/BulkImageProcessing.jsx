@@ -17,9 +17,12 @@ import {
 import "./BulkImageProcessing.css";
 
 // Render backend URL
-const API_BASE =
-  "https://image-background-remover-backend-wa3j.onrender.com";
-
+const API_BASE = `${
+  import.meta.env.VITE_API_BASE_URL ||
+  (import.meta.env.DEV
+    ? "http://localhost:4000"
+    : "https://image-background-remover-backend-wa3j.onrender.com")
+}/users`;
 const outputTypes = {
   PNG: "image/png",
   JPG: "image/jpeg",
@@ -221,7 +224,7 @@ function BulkImageProcessing() {
     if (batchId) {
       try {
         const response = await fetch(
-          `${API_BASE}/users/bulkimage/${encodeURIComponent(
+          `${API_BASE}/bulkimage/${encodeURIComponent(
             batchId
           )}`,
           { method: "DELETE" }
@@ -359,7 +362,7 @@ function BulkImageProcessing() {
   // Save batch metadata to the Render backend.
   const saveBatch = async (images) => {
     const response = await fetch(
-      `${API_BASE}/users/bulkimage`,
+      `${API_BASE}/bulkimage`,
       {
         method: "POST",
         headers: {
@@ -426,7 +429,7 @@ function BulkImageProcessing() {
     }
 
     const response = await fetch(
-      `${API_BASE}/users/bulkimage/${encodeURIComponent(
+      `${API_BASE}/bulkimage/${encodeURIComponent(
         id
       )}`,
       {

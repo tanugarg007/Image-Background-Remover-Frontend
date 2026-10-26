@@ -19,9 +19,12 @@ import {
 } from "lucide-react";
 import "./ImageAnalyzer.css";
 
-// Render backend URL
-const API_BASE =
-  "https://image-background-remover-backend-wa3j.onrender.com/users/analyze-image";
+const API_BASE = `${
+  import.meta.env.VITE_API_BASE_URL ||
+  (import.meta.env.DEV
+    ? "http://localhost:4000"
+    : "https://image-background-remover-backend-wa3j.onrender.com")
+}/users/analyze-image`;
 
 const MAX_FILE_SIZE = 25 * 1024 * 1024;
 
@@ -387,10 +390,10 @@ function ImageAnalyzer() {
     setEditName("");
   };
 
-  // PUT: Update saved image name
+  // PATCH: Update saved image name
   const updateAnalyzedImage = async (id, updates) => {
     const response = await fetch(`${API_BASE}/${id}`, {
-      method: "PUT",
+      method: "PATCH",
       headers: {
         "Content-Type": "application/json",
       },
