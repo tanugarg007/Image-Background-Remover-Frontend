@@ -3,13 +3,9 @@ import { useEffect, useRef, useState } from "react";
 import imageCompression from "browser-image-compression";
 import { Upload, Download } from "lucide-react";
 import "./compressor.css";
+import { API_ROOT } from "../config/api.js";
 
-const API_BASE = `${
-  import.meta.env.VITE_API_BASE_URL ||
-  (import.meta.env.DEV
-    ? "http://localhost:4000"
-    : "https://image-background-remover-backend-wa3j.onrender.com")
-}/users`;
+const API_BASE = `${API_ROOT}/users`;
 
 function ImageCompressor() {
   const [original, setOriginal] = useState(null);

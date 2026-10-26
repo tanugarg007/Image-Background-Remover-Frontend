@@ -10,9 +10,10 @@ import {
   CheckCircle2,
 } from "lucide-react";
 import "./Image.css";
+import { API_ROOT } from "../config/api.js";
 
-// Replace this with your actual Render backend URL.
-const API_BASE = "https://image-background-remover-backend-wa3j.onrender.com";
+const API_BASE =
+  "https://image-background-remover-backend-wa3j.onrender.com/users";
 
 function Image() {
   const fileInputRef = useRef(null);
@@ -111,7 +112,7 @@ function Image() {
       formData.append("image", selectedFile);
 
       const response = await fetch(
-        `${API_BASE}/users/remove-background`,
+       `${API_BASE}/remove-background`,
         {
           method: "POST",
           body: formData,
@@ -150,7 +151,7 @@ function Image() {
 
       // Load the processed image from the backend.
       const imageResponse = await fetch(
-        `${API_BASE}/users/backgrounddownload/${encodeURIComponent(
+        `${API_BASE}/backgrounddownload/${encodeURIComponent(
           result.filename
         )}`,
         { cache: "no-store" }

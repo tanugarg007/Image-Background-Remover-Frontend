@@ -15,14 +15,9 @@ import {
   X,
 } from "lucide-react";
 import "./BulkImageProcessing.css";
+import { API_ROOT } from "../config/api.js";
 
-// Render backend URL
-const API_BASE = `${
-  import.meta.env.VITE_API_BASE_URL ||
-  (import.meta.env.DEV
-    ? "http://localhost:4000"
-    : "https://image-background-remover-backend-wa3j.onrender.com")
-}/users`;
+const API_BASE = `${API_ROOT}/users`;
 const outputTypes = {
   PNG: "image/png",
   JPG: "image/jpeg",

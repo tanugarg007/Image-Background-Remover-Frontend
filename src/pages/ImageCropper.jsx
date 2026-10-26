@@ -10,13 +10,9 @@ import {
 } from "lucide-react";
 
 import "./ImageCropper.css";
+import { API_ROOT } from "../config/api.js";
 
-const API_BASE = `${
-  import.meta.env.VITE_API_BASE_URL ||
-  (import.meta.env.DEV
-    ? "http://localhost:4000"
-    : "https://image-background-remover-backend-wa3j.onrender.com")
-}/users`;
+const API_BASE = `${API_ROOT}/users`;
 
 const aspectOptions = [
   { label: "Free", value: "free" },

@@ -12,14 +12,9 @@ import {
   X,
 } from "lucide-react";
 import "./DownloadOptions.css";
+import { API_ROOT } from "../config/api.js";
 
-// Deployed Render backend URL
-const API_BASE = `${
-  import.meta.env.VITE_API_BASE_URL ||
-  (import.meta.env.DEV
-    ? "http://localhost:4000"
-    : "https://image-background-remover-backend-wa3j.onrender.com")
-}/users`;
+const API_BASE = `${API_ROOT}/users`;
 
 const MAX_FILE_SIZE = 20 * 1024 * 1024;
 const MAX_FILES = 20;
