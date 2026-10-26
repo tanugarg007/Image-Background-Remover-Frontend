@@ -13,7 +13,7 @@ import "./Image.css";
 import { API_ROOT } from "../config/api.js";
 
 const API_BASE =
-  "https://image-background-remover-backend-wa3j.onrender.com/users";
+  "https://image-background-remover-backend-6wzq.onrender.com/users";
 
 function Image() {
   const fileInputRef = useRef(null);
