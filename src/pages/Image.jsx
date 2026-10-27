@@ -12,8 +12,9 @@ import {
 import "./Image.css";
 import { API_ROOT } from "../config/api.js";
 
-const API_BASE =
-  "https://image-background-remover-backend-6wzq.onrender.com/users";
+const API_BASE = import.meta.env.PROD
+  ? "https://image-background-remover-backend-6wzq.onrender.com/users"
+  : "http://localhost:4000/users";
 
 function Image() {
   const fileInputRef = useRef(null);
@@ -130,11 +131,13 @@ function Image() {
           errorMessage =
             data.message || data.error || errorMessage;
         } else {
-          errorMessage =
-            (await response.text()) || errorMessage;
+           const text = await response.text();
+    errorMessage = text || `Server error: ${response.status}`;
         }
 
-        throw new Error(errorMessage);
+        throw new Error(
+           `HTTP ${response.status}: ${errorMessage}`
+        );
       }
 
       const result = await response.json();
