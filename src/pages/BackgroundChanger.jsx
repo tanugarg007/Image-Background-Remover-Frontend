@@ -14,7 +14,8 @@ import {
 import "./BackgroundChanger.css";
 import { API_ROOT } from "../config/api.js";
 
-const API_BASE = API_ROOT;
+const API_BASE =
+  "https://image-background-remover-backend-6wzq.onrender.com/users";
 
 const backgrounds = [
   {

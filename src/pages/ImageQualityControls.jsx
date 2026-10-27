@@ -3,7 +3,8 @@ import { useEffect, useState } from "react";
 import "./ImageQualityControls.css";
 import { API_ROOT } from "../config/api.js";
 
-const API_BASE = `${API_ROOT}/users`;
+const API_BASE =
+  "https://image-background-remover-backend-6wzq.onrender.com/users";
 
 const formats = {
   WEBP: "image/webp",

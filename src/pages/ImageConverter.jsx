@@ -9,9 +9,9 @@ import {
 } from "lucide-react";
 
 import "./ImageConverter.css";
-import { API_ROOT } from "../config/api.js";
 
-const API_BASE = `${API_ROOT}/users`;
+const API_BASE =
+  "https://image-background-remover-backend-6wzq.onrender.com/users";
 
 const formats = {
   PNG: "image/png",
@@ -150,7 +150,7 @@ function ImageConverter() {
       formData.append("height", String(imageBitmap.height));
       formData.append("quality", String(quality));
 
-      // Save the converted image through the configured backend.
+      // Save the converted image through the Render backend.
       const response = await fetch(
         `${API_BASE}/image-converter`,
         {
