@@ -12,10 +12,9 @@ import {
   X,
 } from "lucide-react";
 import "./DownloadOptions.css";
-import { API_ROOT } from "../config/api.js";
+import { API_USERS } from "../config/api.js";
 
-const API_BASE =
-  "https://image-background-remover-backend-6wzq.onrender.com/users";
+const API_BASE = API_USERS;
 
 const MAX_FILE_SIZE = 20 * 1024 * 1024;
 const MAX_FILES = 20;
@@ -63,9 +62,10 @@ function DownloadOptions() {
   const [historyLoading, setHistoryLoading] = useState(false);
 
   useEffect(() => {
+    const urls = urlsRef.current;
     return () => {
-      urlsRef.current.forEach((url) => URL.revokeObjectURL(url));
-      urlsRef.current.clear();
+      urls.forEach((url) => URL.revokeObjectURL(url));
+      urls.clear();
     };
   }, []);
 
@@ -90,6 +90,8 @@ function DownloadOptions() {
   };
 
   useEffect(() => {
+    // Initial async data loading updates state after the network response.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     fetchHistory();
   }, []);
 

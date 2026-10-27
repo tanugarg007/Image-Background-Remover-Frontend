@@ -12,10 +12,9 @@ import {
   Upload,
 } from "lucide-react";
 import "./BackgroundChanger.css";
-import { API_ROOT } from "../config/api.js";
+import { API_USERS } from "../config/api.js";
 
-const API_BASE =
-  "https://image-background-remover-backend-6wzq.onrender.com/users";
+const API_BASE = API_USERS;
 
 const backgrounds = [
   {
@@ -170,7 +169,7 @@ const selectFile = (selectedFile) => {
       body.append("image", file);
 
       const response = await fetch(
-        `${API_BASE}/users/remove-background`,
+        `${API_BASE}/remove-background`,
         {
           method: "POST",
           body,
@@ -221,7 +220,7 @@ const selectFile = (selectedFile) => {
         }
 
         const imageResponse = await fetch(
-          `${API_BASE}/users/backgrounddownload/${encodeURIComponent(
+          `${API_BASE}/backgrounddownload/${encodeURIComponent(
             filename
           )}`,
           { cache: "no-store" }
@@ -325,7 +324,7 @@ const downloadResult = async () => {
     body.append("selectedColor", activeBackground.from);
 
     const response = await fetch(
-      `${API_BASE}/users/savebackground`,
+      `${API_BASE}/savebackground`,
       {
         method: "POST",
         body,
@@ -351,7 +350,7 @@ const downloadResult = async () => {
     // Download saved image from backend
    
 const downloadResponse = await fetch(
-  `${API_BASE}/users/downloadbackground/${encodeURIComponent(imageId)}`
+  `${API_BASE}/downloadbackground/${encodeURIComponent(imageId)}`
 );
 
 if (!downloadResponse.ok) {

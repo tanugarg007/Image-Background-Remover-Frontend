@@ -2,7 +2,6 @@
 import { useEffect, useRef, useState } from "react";
 import {
   ArrowDownToLine,
-  Check,
   CheckCircle2,
   FileImage,
   ImagePlus,
@@ -15,10 +14,9 @@ import {
   X,
 } from "lucide-react";
 import "./BulkImageProcessing.css";
-import { API_ROOT } from "../config/api.js";
+import { API_USERS } from "../config/api.js";
 
-const API_BASE =
-  "https://image-background-remover-backend-6wzq.onrender.com/users";
+const API_BASE = API_USERS;
   
 const outputTypes = {
   PNG: "image/png",
@@ -136,11 +134,10 @@ function BulkImageProcessing() {
   const [savedBatches, setSavedBatches] = useState([]);
 
   useEffect(() => {
+    const urls = urlsRef.current;
     return () => {
-      urlsRef.current.forEach((url) =>
-        URL.revokeObjectURL(url)
-      );
-      urlsRef.current.clear();
+      urls.forEach((url) => URL.revokeObjectURL(url));
+      urls.clear();
     };
   }, []);
 

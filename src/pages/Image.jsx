@@ -10,11 +10,9 @@ import {
   CheckCircle2,
 } from "lucide-react";
 import "./Image.css";
-import { API_ROOT } from "../config/api.js";
+import { API_USERS } from "../config/api.js";
 
-const API_BASE = import.meta.env.PROD
-  ? "https://image-background-remover-backend-6wzq.onrender.com/users"
-  : "http://localhost:4000/users";
+const API_BASE = API_USERS;
 
 function Image() {
   const fileInputRef = useRef(null);

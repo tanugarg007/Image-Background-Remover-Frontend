@@ -10,10 +10,9 @@ import {
 } from "lucide-react";
 
 import "./ImageCropper.css";
-import { API_ROOT } from "../config/api.js";
+import { API_USERS } from "../config/api.js";
 
-const API_BASE =
-  "https://image-background-remover-backend-6wzq.onrender.com/users";
+const API_BASE = API_USERS;
 
 const aspectOptions = [
   { label: "Free", value: "free" },
@@ -72,10 +71,7 @@ function ImageCropper() {
 
   // Load uploaded image.
   useEffect(() => {
-    if (!imageUrl) {
-      setImage(null);
-      return undefined;
-    }
+    if (!imageUrl) return undefined;
 
     let cancelled = false;
     const preview = new Image();

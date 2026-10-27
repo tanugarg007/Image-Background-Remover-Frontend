@@ -18,10 +18,9 @@ import {
   X,
 } from "lucide-react";
 import "./ImageAnalyzer.css";
-import { API_ROOT } from "../config/api.js";
+import { API_USERS } from "../config/api.js";
 
-const API_BASE =
-  "https://image-background-remover-backend-6wzq.onrender.com/users";
+const API_BASE = `${API_USERS}/analyze-image`;
 
 const MAX_FILE_SIZE = 25 * 1024 * 1024;
 
@@ -75,9 +74,10 @@ function ImageAnalyzer() {
     images.find((image) => image.id === selectedId) || images[0];
 
   useEffect(() => {
+    const urls = urlsRef.current;
     return () => {
-      urlsRef.current.forEach((url) => URL.revokeObjectURL(url));
-      urlsRef.current.clear();
+      urls.forEach((url) => URL.revokeObjectURL(url));
+      urls.clear();
     };
   }, []);
 

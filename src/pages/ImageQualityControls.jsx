@@ -1,10 +1,9 @@
 
 import { useEffect, useState } from "react";
 import "./ImageQualityControls.css";
-import { API_ROOT } from "../config/api.js";
+import { API_USERS } from "../config/api.js";
 
-const API_BASE =
-  "https://image-background-remover-backend-6wzq.onrender.com/users";
+const API_BASE = API_USERS;
 
 const formats = {
   WEBP: "image/webp",
@@ -107,6 +106,8 @@ function ImageQualityControls() {
   };
 
   useEffect(() => {
+    // Initial async data loading updates state after the network response.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     loadHistory();
   }, []);
 
@@ -138,12 +139,11 @@ function ImageQualityControls() {
 
   // Original image preview.
   useEffect(() => {
-    if (!file) {
-      setSourceUrl("");
-      return undefined;
-    }
+    if (!file) return undefined;
 
     const url = URL.createObjectURL(file);
+    // Synchronize React state with the browser-created object URL.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setSourceUrl(url);
 
     return () => URL.revokeObjectURL(url);
@@ -151,12 +151,7 @@ function ImageQualityControls() {
 
   // Compress the image in the browser.
   useEffect(() => {
-    if (!file) {
-      setOutputBlob(null);
-      setOutputUrl("");
-      setDimensions({ width: 0, height: 0 });
-      return undefined;
-    }
+    if (!file) return undefined;
 
     let cancelled = false;
     let generatedUrl = "";

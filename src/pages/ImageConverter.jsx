@@ -9,9 +9,9 @@ import {
 } from "lucide-react";
 
 import "./ImageConverter.css";
+import { API_USERS } from "../config/api.js";
 
-const API_BASE =
-  "https://image-background-remover-backend-6wzq.onrender.com/users";
+const API_BASE = API_USERS;
 
 const formats = {
   PNG: "image/png",
