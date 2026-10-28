@@ -12,7 +12,7 @@ import {
   Upload,
 } from "lucide-react";
 import "./BackgroundChanger.css";
-import { API_USERS } from "../config/api.js";
+import { API_USERS, removeBackgroundAndWait } from "../config/api.js";
 
 const API_BASE = API_USERS;
 
@@ -165,75 +165,17 @@ const selectFile = (selectedFile) => {
     setMessage("");
 
     try {
-      const body = new FormData();
-      body.append("image", file);
-
-      const response = await fetch(
-        `${API_BASE}/remove-background`,
-        {
-          method: "POST",
-          body,
-        }
+      const filename = await removeBackgroundAndWait(file, setMessage);
+      const imageResponse = await fetch(
+        `${API_BASE}/backgrounddownload/${encodeURIComponent(filename)}`,
+        { cache: "no-store" }
       );
 
-      if (!response.ok) {
-        const contentType =
-          response.headers.get("content-type") || "";
-
-        let errorMessage = "Could not remove the background.";
-
-        if (contentType.includes("application/json")) {
-          const data = await response.json();
-
-          errorMessage =
-            data.message ||
-            data.error ||
-            errorMessage;
-        } else {
-          errorMessage =
-            (await response.text()) || errorMessage;
-        }
-
-        throw new Error(errorMessage);
+      if (!imageResponse.ok) {
+        throw new Error("Could not download the processed image.");
       }
 
-      const contentType =
-        response.headers.get("content-type") || "";
-
-      let imageBlob;
-
-      // Case 1: Backend directly returns an image.
-      if (contentType.startsWith("image/")) {
-        imageBlob = await response.blob();
-      } else {
-        // Case 2: Backend returns JSON with a filename.
-        const data = await response.json();
-
-        const filename =
-          data.filename || data.data?.filename;
-
-        if (!filename) {
-          throw new Error(
-            data.message ||
-              "Backend did not return an image filename."
-          );
-        }
-
-        const imageResponse = await fetch(
-          `${API_BASE}/backgrounddownload/${encodeURIComponent(
-            filename
-          )}`,
-          { cache: "no-store" }
-        );
-
-        if (!imageResponse.ok) {
-          throw new Error(
-            "Could not download the processed image."
-          );
-        }
-
-        imageBlob = await imageResponse.blob();
-      }
+      const imageBlob = await imageResponse.blob();
 
       if (
         !imageBlob.type.startsWith("image/") ||

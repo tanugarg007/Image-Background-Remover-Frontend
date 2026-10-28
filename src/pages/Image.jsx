@@ -10,7 +10,7 @@ import {
   CheckCircle2,
 } from "lucide-react";
 import "./Image.css";
-import { API_USERS } from "../config/api.js";
+import { API_USERS, removeBackgroundAndWait } from "../config/api.js";
 
 const API_BASE = API_USERS;
 
@@ -107,53 +107,15 @@ function Image() {
     setProcessedFilename("");
 
     try {
-      const formData = new FormData();
-      formData.append("image", selectedFile);
-
-      const response = await fetch(
-       `${API_BASE}/remove-background`,
-        {
-          method: "POST",
-          body: formData,
-        }
+      const filename = await removeBackgroundAndWait(
+        selectedFile,
+        setMessage
       );
-
-      if (!response.ok) {
-        const contentType =
-          response.headers.get("content-type") || "";
-
-        let errorMessage = "Background removal failed.";
-
-        if (contentType.includes("application/json")) {
-          const data = await response.json();
-          errorMessage =
-            data.message || data.error || errorMessage;
-        } else {
-           const text = await response.text();
-    errorMessage = text || `Server error: ${response.status}`;
-        }
-
-        throw new Error(
-           `HTTP ${response.status}: ${errorMessage}`
-        );
-      }
-
-      const result = await response.json();
-
-      if (
-        typeof result.filename !== "string" ||
-        !result.filename
-      ) {
-        throw new Error(
-          result.message ||
-            "The server did not provide the processed image name."
-        );
-      }
 
       // Load the processed image from the backend.
       const imageResponse = await fetch(
         `${API_BASE}/backgrounddownload/${encodeURIComponent(
-          result.filename
+          filename
         )}`,
         { cache: "no-store" }
       );
@@ -178,7 +140,7 @@ function Image() {
       const resultUrl = URL.createObjectURL(imageBlob);
 
       setProcessedImage(resultUrl);
-      setProcessedFilename(result.filename);
+      setProcessedFilename(filename);
       setMessage("Background removed successfully!");
     } catch (err) {
       console.error("Background removal error:", err);
