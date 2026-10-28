@@ -10,9 +10,11 @@
     "preview": "vite preview"
   },
   "dependencies": {
+    "@imgly/background-removal": "^1.7.0",
     "browser-image-compression": "^2.0.2",
     "jszip": "^3.10.2",
     "lucide-react": "^1.55.0",
+    "onnxruntime-web": "^1.21.0",
     "react": "^19.2.8",
     "react-dom": "^19.2.8",
     "react-error-boundary": "^6.1.6",

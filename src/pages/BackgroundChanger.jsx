@@ -12,7 +12,7 @@ import {
   Upload,
 } from "lucide-react";
 import "./BackgroundChanger.css";
-import { API_USERS, removeBackgroundAndWait } from "../config/api.js";
+import { API_USERS, removeBackgroundInBrowser } from "../config/api.js";
 
 const API_BASE = API_USERS;
 
@@ -165,17 +165,7 @@ const selectFile = (selectedFile) => {
     setMessage("");
 
     try {
-      const filename = await removeBackgroundAndWait(file, setMessage);
-      const imageResponse = await fetch(
-        `${API_BASE}/backgrounddownload/${encodeURIComponent(filename)}`,
-        { cache: "no-store" }
-      );
-
-      if (!imageResponse.ok) {
-        throw new Error("Could not download the processed image.");
-      }
-
-      const imageBlob = await imageResponse.blob();
+      const imageBlob = await removeBackgroundInBrowser(file, setMessage);
 
       if (
         !imageBlob.type.startsWith("image/") ||

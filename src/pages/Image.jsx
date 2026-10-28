@@ -10,9 +10,7 @@ import {
   CheckCircle2,
 } from "lucide-react";
 import "./Image.css";
-import { API_USERS, removeBackgroundAndWait } from "../config/api.js";
-
-const API_BASE = API_USERS;
+import { removeBackgroundInBrowser } from "../config/api.js";
 
 function Image() {
   const fileInputRef = useRef(null);
@@ -107,26 +105,10 @@ function Image() {
     setProcessedFilename("");
 
     try {
-      const filename = await removeBackgroundAndWait(
+      const imageBlob = await removeBackgroundInBrowser(
         selectedFile,
         setMessage
       );
-
-      // Load the processed image from the backend.
-      const imageResponse = await fetch(
-        `${API_BASE}/backgrounddownload/${encodeURIComponent(
-          filename
-        )}`,
-        { cache: "no-store" }
-      );
-
-      if (!imageResponse.ok) {
-        throw new Error(
-          "Background was removed, but the processed image could not be loaded."
-        );
-      }
-
-      const imageBlob = await imageResponse.blob();
 
       if (
         imageBlob.size === 0 ||
@@ -140,7 +122,8 @@ function Image() {
       const resultUrl = URL.createObjectURL(imageBlob);
 
       setProcessedImage(resultUrl);
-      setProcessedFilename(filename);
+      const baseName = selectedFile.name.replace(/\.[^.]+$/, "") || "image";
+      setProcessedFilename(`${baseName}-background-removed.png`);
       setMessage("Background removed successfully!");
     } catch (err) {
       console.error("Background removal error:", err);
