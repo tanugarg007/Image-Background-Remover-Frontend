@@ -1,0 +1,8 @@
+{
+  "rewrites": [
+    {
+      "source": "/api/:path*",
+      "destination": "https://image-background-remover-backend-6wzq.onrender.com/:path*"
+    }
+  ]
+}
