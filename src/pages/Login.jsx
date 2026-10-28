@@ -27,7 +27,8 @@ function Login() {
 
     setIsSubmitting(true);
     try {
-      const response = await fetch(`${API_USERS}/${mode === "register" ? "register" : "login"}`, {
+      const endpoint = mode === "register" ? "register" : "login";
+      const response = await fetch(`${API_USERS}/${endpoint}`, {
         method: "POST",
         credentials: "include",
         headers: { "Content-Type": "application/json" },
@@ -35,8 +36,11 @@ function Login() {
       });
       const data = await response.json().catch(() => ({}));
 
-      if (!response.ok) {
-        throw new Error(data.message || `Could not ${mode === "register" ? "create account" : "sign in"}.`);
+      if (!response.ok || data.success !== true || !data.user) {
+        throw new Error(
+          data.message ||
+            `Could not ${mode === "register" ? "create account" : "sign in"} (HTTP ${response.status}).`
+        );
       }
 
       navigate("/", { replace: true });
