@@ -15,9 +15,12 @@ export const API_USERS = `${API_ROOT}/users`;
 export async function removeBackgroundInBrowser(file, onStatus) {
   onStatus?.("Loading background-removal model…");
 
-  const { default: imglyRemoveBackground } = await import(
+  const { removeBackground: imglyRemoveBackground } = await import(
     "@imgly/background-removal"
   );
+  if (typeof imglyRemoveBackground !== "function") {
+    throw new Error("The background-removal model did not load correctly.");
+  }
   const result = await imglyRemoveBackground(file, {
     model: "isnet_quint8",
     device: "cpu",
