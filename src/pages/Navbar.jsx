@@ -1,4 +1,5 @@
 import './Navbar.css'
+import { Link } from 'react-router-dom'
 
 function SparkleIcon() {
   return (
@@ -44,9 +45,9 @@ function Navbar() {
           <span className="status-dot" />
           Free, fast & private
         </div>
-        <button className="nav-button nav-button-secondary" type="button">
+        <Link className="nav-button nav-button-secondary" to="/login">
           Log in
-        </button>
+        </Link>
         <button className="nav-button nav-button-primary" type="button">
           Get started
         </button>
