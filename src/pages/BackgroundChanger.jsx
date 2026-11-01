@@ -12,7 +12,8 @@ import {
   Upload,
 } from "lucide-react";
 import "./BackgroundChanger.css";
-import { API_USERS, removeBackgroundInBrowser } from "../config/api.js";
+import { API_USERS } from "../config/api.js";
+import { trackDownload } from "../config/downloadTracking.js";
 
 const API_BASE = API_USERS;
 
@@ -165,7 +166,75 @@ const selectFile = (selectedFile) => {
     setMessage("");
 
     try {
-      const imageBlob = await removeBackgroundInBrowser(file, setMessage);
+      const body = new FormData();
+      body.append("image", file);
+
+      const response = await fetch(
+        `${API_BASE}/remove-background`,
+        {
+          method: "POST",
+          body,
+        }
+      );
+
+      if (!response.ok) {
+        const contentType =
+          response.headers.get("content-type") || "";
+
+        let errorMessage = "Could not remove the background.";
+
+        if (contentType.includes("application/json")) {
+          const data = await response.json();
+
+          errorMessage =
+            data.message ||
+            data.error ||
+            errorMessage;
+        } else {
+          errorMessage =
+            (await response.text()) || errorMessage;
+        }
+
+        throw new Error(errorMessage);
+      }
+
+      const contentType =
+        response.headers.get("content-type") || "";
+
+      let imageBlob;
+
+      // Case 1: Backend directly returns an image.
+      if (contentType.startsWith("image/")) {
+        imageBlob = await response.blob();
+      } else {
+        // Case 2: Backend returns JSON with a filename.
+        const data = await response.json();
+
+        const filename =
+          data.filename || data.data?.filename;
+
+        if (!filename) {
+          throw new Error(
+            data.message ||
+              "Backend did not return an image filename."
+          );
+        }
+
+        const imageResponse = await fetch(
+          `${API_BASE}/backgrounddownload/${encodeURIComponent(
+            filename
+          )}`,
+          { cache: "no-store" }
+        );
+
+        if (!imageResponse.ok) {
+          throw new Error(
+            "Could not download the processed image."
+          );
+        }
+
+        imageBlob = await imageResponse.blob();
+      }
 
       if (
         !imageBlob.type.startsWith("image/") ||
@@ -307,6 +376,7 @@ const originalName =
   file.name.replace(/\.[^.]+$/, "") || "image";
 
 link.download = `${originalName}-background.png`;
+trackDownload("Background changer", link.download);
 
 document.body.appendChild(link);
 link.click();

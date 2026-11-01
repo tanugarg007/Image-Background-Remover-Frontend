@@ -13,9 +13,9 @@ import {
 } from "lucide-react";
 import "./DownloadOptions.css";
 import { API_USERS } from "../config/api.js";
+import { trackDownload } from "../config/downloadTracking.js";
 
 const API_BASE = API_USERS;
-
 const MAX_FILE_SIZE = 20 * 1024 * 1024;
 const MAX_FILES = 20;
 
@@ -171,6 +171,7 @@ function DownloadOptions() {
     const link = document.createElement("a");
     link.href = entry.url;
     link.download = entry.file.name;
+    trackDownload("Downloads", entry.file.name, entry.file.size);
 
     document.body.appendChild(link);
     link.click();

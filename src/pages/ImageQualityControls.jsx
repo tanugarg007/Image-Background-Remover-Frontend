@@ -2,9 +2,9 @@
 import { useEffect, useState } from "react";
 import "./ImageQualityControls.css";
 import { API_USERS } from "../config/api.js";
+import { trackDownload } from "../config/downloadTracking.js";
 
 const API_BASE = API_USERS;
-
 const formats = {
   WEBP: "image/webp",
   JPG: "image/jpeg",
@@ -491,6 +491,7 @@ function ImageQualityControls() {
       const link = document.createElement("a");
       link.href = url;
       link.download = `${getFileBaseName(imageName)}-optimized.${extension}`;
+      trackDownload("Quality controls", link.download, blob.size);
 
       document.body.appendChild(link);
       link.click();
@@ -628,6 +629,7 @@ function ImageQualityControls() {
                   download={downloadName}
                   onClick={(event) => {
                     if (!outputUrl) event.preventDefault();
+                    else trackDownload("Quality controls", downloadName);
                   }}
                   aria-disabled={!outputUrl}
                 >

@@ -20,7 +20,7 @@ import {
 import "./ImageAnalyzer.css";
 import { API_USERS } from "../config/api.js";
 
-const API_BASE = `${API_USERS}/analyze-image`;
+const API_BASE = API_USERS;
 
 const MAX_FILE_SIZE = 25 * 1024 * 1024;
 
@@ -149,7 +149,7 @@ function ImageAnalyzer() {
           const formData = new FormData();
           formData.append("image", file);
 
-          const response = await fetch(API_BASE, {
+          const response = await fetch(`${API_BASE}/AnalyzeImage`,{
             method: "POST",
             body: formData,
           });

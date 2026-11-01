@@ -1,5 +1,30 @@
 import './Navbar.css'
 import { Link } from 'react-router-dom'
+import { ChevronDown, ChevronUp } from 'lucide-react'
+import Image from './Image.jsx'
+import BackgroundBlur from './BackgroundBlur.jsx'
+import BackgroundChanger from './BackgroundChanger.jsx'
+import ImageCompressor from './image-compressor.jsx'
+import ImageConverter from './ImageConverter.jsx'
+import ImageCropper from './ImageCropper.jsx'
+import BulkImageProcessing from './BulkImageProcessing.jsx'
+import DownloadOptions from './DownloadOptions.jsx'
+import ImageAnalyzer from './ImageAnalyzer.jsx'
+import ImageQualityControls from './ImageQualityControls.jsx'
+
+// Register each frontend tool here; App, the navbar, and the admin list use this catalog.
+export const toolCatalog = [
+  { title: 'Background Remover', navLabel: 'BG remover', description: 'Remove an image background and download a transparent result.', icon: 'ImageIcon', route: '#background-removal', Component: Image },
+  { title: 'Background Changer', navLabel: 'Backgrounds', description: 'Replace or customize the background of an image.', icon: 'Palette', route: '#background-changer', Component: BackgroundChanger },
+  { title: 'Background Blur', navLabel: 'Blur', description: 'Keep your subject crisp and blur the background for a portrait-style finish.', icon: 'Aperture', route: '#background-blur', Component: BackgroundBlur },
+  { title: 'Image Compressor', navLabel: 'Compressor', description: 'Reduce image file size while preserving useful quality.', icon: 'Minimize2', route: '#image-compressor', Component: ImageCompressor },
+  { title: 'Image Converter', navLabel: 'Converter', description: 'Convert images between supported file formats.', icon: 'FileImage', route: '#image-converter', Component: ImageConverter },
+  { title: 'Image Cropper', navLabel: 'Cropper', description: 'Crop and download an image to the desired dimensions.', icon: 'Crop', route: '#image-cropper', Component: ImageCropper },
+  { title: 'Bulk Image Processing', navLabel: 'Bulk', description: 'Process multiple images in one workflow.', icon: 'Layers', route: '#bulk-processing', Component: BulkImageProcessing },
+  { title: 'Download Options', navLabel: 'Downloads', description: 'View and manage available image download options.', icon: 'Archive', route: '#download-options', Component: DownloadOptions },
+  { title: 'Image Analyzer', navLabel: 'Analyzer', description: 'Analyze an image and review its detected details.', icon: 'ScanSearch', route: '#image-analyzer', Component: ImageAnalyzer },
+  { title: 'Image Quality Controls', navLabel: 'Quality', description: 'Adjust image quality settings and inspect the result.', icon: 'SlidersHorizontal', route: '#quality-controls', Component: ImageQualityControls },
+]
 
 function SparkleIcon() {
   return (
@@ -18,7 +43,9 @@ function SparkleIcon() {
   )
 }
 
-function Navbar() {
+function Navbar({ showAllTools, onToggleTools, tools = toolCatalog }) {
+  const visibleToolLinks = showAllTools ? tools : tools.slice(0, 4)
+
   return (
     <header className="topbar">
       <a className="brand" href="/" aria-label="AI Background Remover home">
@@ -29,15 +56,20 @@ function Navbar() {
       </a>
 
       <nav className="topbar-nav" aria-label="Main navigation">
-        <a href="#background-removal">BG remover</a>
-        <a href="#background-changer">Backgrounds</a>
-        <a href="#image-compressor">Compressor</a>
-        <a href="#image-converter">Converter</a>
-        <a href="#image-cropper">Cropper</a>
-        <a href="#bulk-processing">Bulk</a>
-        <a href="#download-options">Downloads</a>
-        <a href="#image-analyzer">Analyzer</a>
-        <a href="#quality-controls">Quality</a>
+        {visibleToolLinks.map((tool) => (
+          <a key={tool.route} href={tool.route}>{tool.navLabel}</a>
+        ))}
+        {tools.length > 4 && (
+          <button
+            className="nav-tools-toggle"
+            type="button"
+            onClick={onToggleTools}
+            aria-expanded={showAllTools}
+          >
+            {showAllTools ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
+            {showAllTools ? 'Show fewer' : 'Show all tools'}
+          </button>
+        )}
       </nav>
 
       <div className="topbar-actions">

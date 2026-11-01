@@ -63,6 +63,26 @@ html { scroll-behavior: smooth; }
   color: #201f1d;
 }
 
+.nav-tools-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 0;
+  border: 0;
+  color: #5545d8;
+  background: transparent;
+  font: inherit;
+  font-size: 13px;
+  font-weight: 700;
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.nav-tools-toggle:hover,
+.nav-tools-toggle:focus-visible {
+  color: #392bad;
+}
+
 .topbar-actions {
   display: inline-flex;
   align-items: center;
@@ -142,6 +162,8 @@ html { scroll-behavior: smooth; }
     flex-wrap: wrap;
   }
 
+  .nav-tools-toggle { font-size: 13px; }
+
   .topbar-actions {
     width: 100%;
     justify-content: center;
@@ -152,7 +174,7 @@ html { scroll-behavior: smooth; }
 @media (max-width: 1120px) and (min-width: 701px) {
   .topbar { padding-right: 3%; padding-left: 3%; gap: 12px; }
   .topbar-nav { gap: 11px; }
-  .topbar-nav a { font-size: 11px; }
+  .topbar-nav a, .nav-tools-toggle { font-size: 11px; }
   .topbar-note { display: none; }
   .nav-button { padding: 0 11px; font-size: 11px; }
 }

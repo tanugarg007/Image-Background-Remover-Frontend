@@ -4,9 +4,9 @@ import imageCompression from "browser-image-compression";
 import { Upload, Download } from "lucide-react";
 import "./compressor.css";
 import { API_USERS } from "../config/api.js";
+import { trackDownload } from "../config/downloadTracking.js";
 
 const API_BASE = API_USERS;
-
 function ImageCompressor() {
   const [original, setOriginal] = useState(null);
   const [compressed, setCompressed] = useState(null);
@@ -257,6 +257,7 @@ function ImageCompressor() {
       const link = document.createElement("a");
       link.href = downloadUrl;
       link.download = `compressed-${baseName}${extension}`;
+      trackDownload("Image compressor", link.download, blob.size);
 
       document.body.appendChild(link);
       link.click();

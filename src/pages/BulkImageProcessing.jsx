@@ -15,6 +15,7 @@ import {
 } from "lucide-react";
 import "./BulkImageProcessing.css";
 import { API_USERS } from "../config/api.js";
+import { trackDownload } from "../config/downloadTracking.js";
 
 const API_BASE = API_USERS;
   
@@ -591,6 +592,7 @@ function BulkImageProcessing() {
       link.download = `${getBaseName(
         item.file.name
       )}.${getExtension(item.outputFormat)}`;
+      trackDownload("Bulk image processing", link.download, blob.size);
 
       document.body.appendChild(link);
       link.click();

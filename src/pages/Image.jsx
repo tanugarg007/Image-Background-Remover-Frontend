@@ -10,7 +10,12 @@ import {
   CheckCircle2,
 } from "lucide-react";
 import "./Image.css";
-import { removeBackgroundInBrowser } from "../config/api.js";
+import { API_USERS } from "../config/api.js";
+import { trackDownload } from "../config/downloadTracking.js";
+
+
+
+const API_BASE = API_USERS;
 
 function Image() {
   const fileInputRef = useRef(null);
@@ -105,10 +110,64 @@ function Image() {
     setProcessedFilename("");
 
     try {
-      const imageBlob = await removeBackgroundInBrowser(
-        selectedFile,
-        setMessage
+      const formData = new FormData();
+      formData.append("image", selectedFile);
+
+      const response = await fetch(
+       `${API_BASE}/remove-background`,
+        {
+          method: "POST",
+          body: formData,
+        }
       );
+
+      if (!response.ok) {
+        const contentType =
+          response.headers.get("content-type") || "";
+
+        let errorMessage = "Background removal failed.";
+
+        if (contentType.includes("application/json")) {
+          const data = await response.json();
+          errorMessage =
+            data.message || data.error || errorMessage;
+        } else {
+           const text = await response.text();
+    errorMessage = text || `Server error: ${response.status}`;
+        }
+
+        throw new Error(
+           `HTTP ${response.status}: ${errorMessage}`
+        );
+      }
+
+      const result = await response.json();
+
+      if (
+        typeof result.filename !== "string" ||
+        !result.filename
+      ) {
+        throw new Error(
+          result.message ||
+            "The server did not provide the processed image name."
+        );
+      }
+
+      // Load the processed image from the backend.
+      const imageResponse = await fetch(
+        `${API_BASE}/backgrounddownload/${encodeURIComponent(
+          result.filename
+        )}`,
+        { cache: "no-store" }
+      );
+
+      if (!imageResponse.ok) {
+        throw new Error(
+          "Background was removed, but the processed image could not be loaded."
+        );
+      }
+
+      const imageBlob = await imageResponse.blob();
 
       if (
         imageBlob.size === 0 ||
@@ -122,8 +181,7 @@ function Image() {
       const resultUrl = URL.createObjectURL(imageBlob);
 
       setProcessedImage(resultUrl);
-      const baseName = selectedFile.name.replace(/\.[^.]+$/, "") || "image";
-      setProcessedFilename(`${baseName}-background-removed.png`);
+      setProcessedFilename(result.filename);
       setMessage("Background removed successfully!");
     } catch (err) {
       console.error("Background removal error:", err);
@@ -149,6 +207,7 @@ function Image() {
       const link = document.createElement("a");
       link.href = processedImage;
       link.download = processedFilename || "background-removed.png";
+      trackDownload("Background removal", link.download);
 
       document.body.appendChild(link);
       link.click();

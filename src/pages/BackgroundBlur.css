@@ -1,0 +1,284 @@
+.background-blur-page {
+  --blur-ink: #20202c;
+  --blur-muted: #747482;
+  --blur-violet: #7358e9;
+  min-height: 100vh;
+  padding: 54px 24px 70px;
+  color: var(--blur-ink);
+  background:
+    radial-gradient(ellipse at 78% 8%, rgba(226, 215, 255, 0.7), transparent 29%),
+    radial-gradient(ellipse at 6% 52%, rgba(220, 240, 255, 0.55), transparent 32%),
+    #f7f7fb;
+}
+
+.background-blur-shell {
+  width: min(1060px, 100%);
+  margin: 0 auto;
+}
+
+.background-blur-hero {
+  position: relative;
+  display: flex;
+  min-height: 310px;
+  align-items: center;
+  justify-content: space-between;
+  overflow: hidden;
+  padding: 42px 68px;
+  border: 1px solid rgba(255, 255, 255, 0.8);
+  border-radius: 28px;
+  background: linear-gradient(117deg, #171a30 4%, #262442 58%, #4a3a71 100%);
+  box-shadow: 0 26px 70px rgba(41, 38, 72, 0.16);
+}
+
+.background-blur-hero::after {
+  position: absolute;
+  right: 21%;
+  bottom: -160px;
+  width: 460px;
+  height: 280px;
+  border-radius: 50%;
+  background: rgba(135, 111, 246, 0.17);
+  content: "";
+  filter: blur(42px);
+}
+
+.background-blur-hero-copy { position: relative; z-index: 1; max-width: 525px; }
+
+.background-blur-eyebrow,
+.background-blur-section-kicker {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  color: #b8aaff;
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0.19em;
+}
+
+.background-blur-eyebrow i {
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: #93ebd0;
+  box-shadow: 0 0 12px #93ebd0;
+}
+
+.background-blur-hero h1 {
+  margin: 18px 0 13px;
+  color: #fff;
+  font-size: clamp(36px, 5vw, 55px);
+  font-weight: 650;
+  letter-spacing: -0.055em;
+  line-height: 1.02;
+}
+
+.background-blur-hero h1 em {
+  color: #b9aaff;
+  font-family: Georgia, serif;
+  font-weight: 400;
+}
+
+.background-blur-hero-copy > p {
+  max-width: 425px;
+  margin: 0;
+  color: #c2c1d0;
+  font-size: 14px;
+  line-height: 1.7;
+}
+
+.background-blur-trust {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  margin-top: 23px;
+  color: #a8e2d1;
+  font-size: 11px;
+  font-weight: 650;
+}
+
+.background-blur-orbit {
+  position: relative;
+  z-index: 1;
+  display: grid;
+  width: 260px;
+  height: 230px;
+  flex: 0 0 260px;
+  place-items: center;
+  color: #d5ceff;
+}
+
+.blur-orbit-ring {
+  position: absolute;
+  border: 1px solid rgba(204, 194, 255, 0.32);
+  border-radius: 50%;
+  transform: rotate(-25deg);
+}
+
+.ring-one { width: 205px; height: 130px; }
+.ring-two { width: 145px; height: 220px; transform: rotate(43deg); }
+
+.blur-orbit-core {
+  display: grid;
+  width: 128px;
+  height: 128px;
+  place-items: center;
+  border: 1px solid rgba(255, 255, 255, 0.28);
+  border-radius: 50%;
+  background: radial-gradient(circle at 35% 30%, rgba(189, 174, 255, 0.45), rgba(123, 100, 213, 0.13) 65%);
+  box-shadow: 0 0 55px rgba(147, 121, 255, 0.3), inset 0 0 24px rgba(255, 255, 255, 0.13);
+}
+
+.blur-orbit-sparkle { position: absolute; color: #a9f2d8; }
+.sparkle-one { top: 31px; right: 49px; }
+.sparkle-two { bottom: 27px; left: 26px; color: #cabdff; }
+
+.background-blur-dropzone {
+  display: flex;
+  width: 100%;
+  min-height: 250px;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  margin-top: 24px;
+  border: 1px dashed #c9c5df;
+  border-radius: 22px;
+  color: var(--blur-ink);
+  background: rgba(255, 255, 255, 0.84);
+  cursor: pointer;
+  transition: border-color 180ms ease, background 180ms ease, transform 180ms ease;
+}
+
+.background-blur-dropzone:hover,
+.background-blur-dropzone.is-dragging {
+  border-color: #8b76ef;
+  background: #fbfaff;
+  transform: translateY(-2px);
+}
+
+.blur-upload-icon {
+  display: grid;
+  width: 52px;
+  height: 52px;
+  place-items: center;
+  margin-bottom: 15px;
+  border: 1px solid #e7e2ff;
+  border-radius: 16px;
+  color: var(--blur-violet);
+  background: #f5f2ff;
+}
+
+.background-blur-dropzone strong { font-size: 17px; letter-spacing: -0.02em; }
+.background-blur-dropzone > span:not(.blur-upload-icon) { margin-top: 5px; color: var(--blur-muted); font-size: 13px; }
+.background-blur-dropzone small { margin-top: 21px; color: #9896a6; font-size: 9px; font-weight: 750; letter-spacing: 0.14em; }
+.background-blur-dropzone small b { padding: 0 5px; color: #b8aaff; }
+.background-blur-file-input { display: none; }
+
+.background-blur-workspace {
+  margin-top: 25px;
+  padding: 30px;
+  border: 1px solid #ecebf3;
+  border-radius: 23px;
+  background: rgba(255, 255, 255, 0.92);
+  box-shadow: 0 18px 48px rgba(38, 35, 74, 0.06);
+}
+
+.background-blur-workspace-heading { display: flex; align-items: center; justify-content: space-between; gap: 15px; margin-bottom: 21px; }
+.background-blur-section-kicker { color: #8c7ae2; font-size: 9px; }
+.background-blur-workspace-heading h2 { margin: 6px 0 0; font-size: 23px; letter-spacing: -0.04em; }
+
+.background-blur-reset {
+  padding: 9px 12px;
+  border: 1px solid #e9e7f0;
+  border-radius: 9px;
+  color: #615f6d;
+  background: #fff;
+  font-size: 11px;
+  font-weight: 650;
+  cursor: pointer;
+}
+
+.background-blur-reset:hover { border-color: #b8aaff; color: #503dc5; }
+.background-blur-previews { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; }
+.background-blur-preview-card { min-width: 0; }
+.background-blur-preview-title { display: flex; align-items: center; gap: 8px; margin-bottom: 9px; color: #333240; font-size: 12px; font-weight: 700; }
+.background-blur-preview-title > span { color: #9786ed; font-size: 10px; font-weight: 800; }
+.background-blur-preview-title small { margin-left: auto; color: #aaa8b6; font-size: 8px; letter-spacing: 0.13em; }
+
+.background-blur-image-frame {
+  position: relative;
+  display: grid;
+  height: clamp(210px, 32vw, 340px);
+  overflow: hidden;
+  place-items: center;
+  border: 1px solid #e9e8f0;
+  border-radius: 15px;
+  background-color: #f1f0f5;
+  background-image: linear-gradient(45deg, #e9e8ef 25%, transparent 25%), linear-gradient(-45deg, #e9e8ef 25%, transparent 25%), linear-gradient(45deg, transparent 75%, #e9e8ef 75%), linear-gradient(-45deg, transparent 75%, #e9e8ef 75%);
+  background-size: 18px 18px;
+  background-position: 0 0, 0 9px, 9px -9px, -9px 0;
+}
+
+.background-blur-image-frame > img { width: 100%; height: 100%; object-fit: contain; }
+.background-blur-image-frame.result-frame { isolation: isolate; }
+.background-blur-layer { position: absolute; inset: 0; }
+.background-blur-subject { position: absolute; inset: 0; z-index: 1; }
+.background-blur-image-chip { position: absolute; right: 10px; bottom: 10px; z-index: 2; padding: 6px 8px; border: 1px solid rgba(255, 255, 255, 0.7); border-radius: 7px; color: #5a5864; background: rgba(255, 255, 255, 0.86); font-size: 8px; font-weight: 800; letter-spacing: 0.09em; backdrop-filter: blur(8px); }
+.result-chip { display: inline-flex; align-items: center; gap: 4px; color: #4a3aa8; }
+
+.background-blur-placeholder { display: flex; height: 100%; flex-direction: column; align-items: center; justify-content: center; gap: 11px; color: #a19daa; font-size: 11px; }
+.background-blur-controls { margin: 23px 0 19px; padding: 17px 18px 14px; border: 1px solid #eeedf4; border-radius: 13px; background: #fbfaff; }
+.background-blur-control-heading { display: flex; align-items: center; justify-content: space-between; color: #393744; font-size: 12px; font-weight: 700; }
+.background-blur-control-heading > span { color: #6b56d5; font-size: 14px; font-weight: 800; }
+.background-blur-control-heading small { color: #9693a2; font-size: 10px; font-weight: 600; }
+
+.background-blur-slider { width: 100%; height: 5px; margin: 18px 0 9px; appearance: none; border-radius: 9px; background: linear-gradient(to right, #7358e9 var(--blur-progress), #e3e0ef var(--blur-progress)); cursor: pointer; }
+.background-blur-slider::-webkit-slider-thumb { width: 17px; height: 17px; appearance: none; border: 3px solid #fff; border-radius: 50%; background: #7358e9; box-shadow: 0 2px 8px rgba(78, 57, 180, 0.3); }
+.background-blur-slider::-moz-range-thumb { width: 12px; height: 12px; border: 3px solid #fff; border-radius: 50%; background: #7358e9; box-shadow: 0 2px 8px rgba(78, 57, 180, 0.3); }
+.background-blur-slider:disabled { cursor: not-allowed; opacity: 0.5; }
+.background-blur-range-labels { display: flex; justify-content: space-between; color: #a29fad; font-size: 8px; font-weight: 750; letter-spacing: 0.12em; }
+
+.background-blur-primary {
+  display: flex;
+  min-height: 48px;
+  align-items: center;
+  justify-content: center;
+  gap: 9px;
+  width: 100%;
+  border: 0;
+  border-radius: 11px;
+  color: #fff;
+  background: linear-gradient(100deg, #7358e9, #8d65dc);
+  box-shadow: 0 8px 20px rgba(109, 82, 219, 0.22);
+  font-size: 13px;
+  font-weight: 750;
+  cursor: pointer;
+  transition: transform 160ms ease, box-shadow 160ms ease;
+}
+
+.background-blur-primary:hover:not(:disabled) { transform: translateY(-1px); box-shadow: 0 11px 25px rgba(109, 82, 219, 0.29); }
+.background-blur-primary:disabled { cursor: wait; opacity: 0.76; }
+.background-blur-status { margin: 12px 0 0; color: #737080; text-align: center; font-size: 11px; }
+.background-blur-error { margin: 15px 0 0; color: #b83355; text-align: center; font-size: 12px; }
+.blur-spinner { animation: background-blur-spin 1s linear infinite; }
+@keyframes background-blur-spin { to { transform: rotate(360deg); } }
+
+.background-blur-footer { display: flex; justify-content: space-between; gap: 15px; padding: 20px 4px 0; color: #9a98a6; font-size: 8px; font-weight: 750; letter-spacing: 0.13em; }
+.background-blur-footer > span:last-child { display: inline-flex; align-items: center; gap: 6px; letter-spacing: 0; font-size: 10px; font-weight: 600; }
+
+@media (max-width: 760px) {
+  .background-blur-page { padding: 28px 15px 45px; }
+  .background-blur-hero { min-height: 0; padding: 38px 30px; }
+  .background-blur-orbit { width: 180px; height: 180px; flex-basis: 180px; transform: scale(0.8); }
+}
+
+@media (max-width: 560px) {
+  .background-blur-page { padding-right: 12px; padding-left: 12px; }
+  .background-blur-hero { padding: 32px 24px; }
+  .background-blur-orbit { display: none; }
+  .background-blur-hero h1 { font-size: 39px; }
+  .background-blur-dropzone { min-height: 220px; }
+  .background-blur-workspace { padding: 19px 14px; }
+  .background-blur-previews { grid-template-columns: 1fr; }
+  .background-blur-image-frame { height: 260px; }
+  .background-blur-footer { flex-direction: column; align-items: center; text-align: center; }
+}

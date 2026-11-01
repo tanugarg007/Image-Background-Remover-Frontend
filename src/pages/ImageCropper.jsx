@@ -11,9 +11,9 @@ import {
 
 import "./ImageCropper.css";
 import { API_USERS } from "../config/api.js";
+import { trackDownload } from "../config/downloadTracking.js";
 
 const API_BASE = API_USERS;
-
 const aspectOptions = [
   { label: "Free", value: "free" },
   { label: "1:1", value: 1 },
@@ -424,6 +424,7 @@ function ImageCropper() {
       link.download = `${
         file.name.replace(/\.[^.]+$/, "") || "image"
       }-cropped.png`;
+      trackDownload("Image cropper", link.download, blob.size);
 
       document.body.appendChild(link);
       link.click();

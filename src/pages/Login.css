@@ -360,8 +360,8 @@
 .login-submit:disabled { cursor: wait; opacity: .72; transform: none; }
 .login-notice { margin: 12px 0 0; padding: 10px 12px; border: 1px solid #e8e3fb; border-radius: 9px; color: #62558f; background: #f8f6ff; font-size: 11px; line-height: 1.5; }
 .login-signup { margin: 22px 0 0; color: #898690; text-align: center; font-size: 11px; }
-.login-signup button { padding: 0 0 1px; border: 0; border-bottom: 1px solid transparent; color: #6350d1; background: transparent; font-size: inherit; font-weight: 700; }
-.login-signup button:hover { border-bottom-color: currentColor; }
+.login-signup a { padding: 0 0 1px; border-bottom: 1px solid transparent; color: #6350d1; font-size: inherit; font-weight: 700; text-decoration: none; }
+.login-signup a:hover { border-bottom-color: currentColor; }
 
 .login-legal { display: flex; align-items: center; justify-content: space-between; gap: 16px; color: #aaa7af; font-size: 10px; }
 .login-legal > span:last-child { display: flex; gap: 17px; }

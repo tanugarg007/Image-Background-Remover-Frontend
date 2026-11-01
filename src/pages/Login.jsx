@@ -7,7 +7,6 @@ import "./Login.css";
 function Login() {
   const navigate = useNavigate();
   const [showPassword, setShowPassword] = useState(false);
-  const [mode, setMode] = useState("login");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [notice, setNotice] = useState("");
 
@@ -20,15 +19,9 @@ function Login() {
     const password = String(formData.get("password") || "");
     const remember = formData.get("remember") === "on";
 
-    if (mode === "register" && password !== formData.get("confirmPassword")) {
-      setNotice("The passwords do not match.");
-      return;
-    }
-
     setIsSubmitting(true);
     try {
-      const endpoint = mode === "register" ? "register" : "login";
-      const response = await fetch(`${API_USERS}/${endpoint}`, {
+      const response = await fetch(`${API_USERS}/login`, {
         method: "POST",
         credentials: "include",
         headers: { "Content-Type": "application/json" },
@@ -36,24 +29,21 @@ function Login() {
       });
       const data = await response.json().catch(() => ({}));
 
-      if (!response.ok || data.success !== true || !data.user) {
-        throw new Error(
-          data.message ||
-            `Could not ${mode === "register" ? "create account" : "sign in"} (HTTP ${response.status}).`
-        );
+      if (!response.ok) {
+        throw new Error(data.message || "Could not sign in.");
       }
 
-      navigate("/", { replace: true });
+      const destination = data.user?.role === "superadmin"
+        ? "/superadmin"
+        : data.user?.role === "admin"
+          ? "/admin"
+          : "/";
+      navigate(destination, { replace: true });
     } catch (error) {
       setNotice(error instanceof Error ? error.message : "Could not connect to the login service.");
     } finally {
       setIsSubmitting(false);
     }
-  };
-
-  const switchMode = () => {
-    setMode((currentMode) => currentMode === "login" ? "register" : "login");
-    setNotice("");
   };
 
   return (
@@ -102,9 +92,9 @@ function Login() {
 
             <div className="login-heading-block">
               <div className="welcome-icon"><LockKeyhole size={19} strokeWidth={1.8} /></div>
-              <span className="login-eyebrow">{mode === "login" ? "WELCOME BACK" : "JOIN THE STUDIO"}</span>
-              <h2 id="login-heading">{mode === "login" ? <>Sign in to your<br />creative space.</> : <>Create your<br />creative space.</>}</h2>
-              <p>{mode === "login" ? "Enter your details below to continue." : "Create an account to get started."}</p>
+              <span className="login-eyebrow">WELCOME BACK</span>
+              <h2 id="login-heading">Sign in to your<br />creative space.</h2>
+              <p>Enter your details below to continue.</p>
             </div>
 
             <form className="login-form" onSubmit={handleSubmit}>
@@ -123,7 +113,7 @@ function Login() {
 
               <div className="password-label-row">
                 <label className="login-label" htmlFor="login-password">Password</label>
-                {mode === "login" && <button className="forgot-button" type="button" onClick={() => setNotice("Password reset is not available yet.")}>Forgot password?</button>}
+                <button className="forgot-button" type="button" onClick={() => setNotice("Password reset is not available yet.")}>Forgot password?</button>
               </div>
               <div className="login-input-wrap">
                 <LockKeyhole className="login-input-icon" size={17} strokeWidth={1.8} />
@@ -131,7 +121,7 @@ function Login() {
                   id="login-password"
                   name="password"
                   type={showPassword ? "text" : "password"}
-                  autoComplete={mode === "login" ? "current-password" : "new-password"}
+                  autoComplete="current-password"
                   placeholder="Enter your password"
                   minLength={8}
                   required
@@ -146,22 +136,6 @@ function Login() {
                 </button>
               </div>
 
-              {mode === "register" && <>
-                <label className="login-label" htmlFor="login-confirm-password">Confirm password</label>
-                <div className="login-input-wrap">
-                  <LockKeyhole className="login-input-icon" size={17} strokeWidth={1.8} />
-                  <input
-                    id="login-confirm-password"
-                    name="confirmPassword"
-                    type={showPassword ? "text" : "password"}
-                    autoComplete="new-password"
-                    placeholder="Enter your password again"
-                    minLength={8}
-                    required
-                  />
-                </div>
-              </>}
-
               <label className="remember-option">
                 <input type="checkbox" name="remember" />
                 <span className="remember-box" />
@@ -169,7 +143,7 @@ function Login() {
               </label>
 
               <button className="login-submit" type="submit" disabled={isSubmitting}>
-                {isSubmitting ? "Please wait…" : mode === "login" ? "Sign in" : "Create account"}
+                {isSubmitting ? "Please wait…" : "Sign in"}
                 {!isSubmitting && <ArrowUpRight size={17} strokeWidth={2} />}
               </button>
 
@@ -177,8 +151,7 @@ function Login() {
             </form>
 
             <p className="login-signup">
-              {mode === "login" ? "New to the studio? " : "Already have an account? "}
-              <button type="button" onClick={switchMode}>{mode === "login" ? "Create an account" : "Sign in"}</button>
+              New to the studio? <Link to="/register">Create an account</Link>
             </p>
           </div>
 
