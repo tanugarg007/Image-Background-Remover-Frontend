@@ -11,7 +11,7 @@ import {
 
 import "./ImageCropper.css";
 import { API_USERS } from "../config/api.js";
-import { trackDownload } from "../config/downloadTracking.js";
+import { releaseGuestDownload, requireLoginForDownload, trackDownload } from "../config/downloadTracking.js";
 
 const API_BASE = API_USERS;
 const aspectOptions = [
@@ -383,6 +383,7 @@ function ImageCropper() {
       setResultUrl(URL.createObjectURL(blob));
       setCropId(id);
     } catch (cause) {
+      await releaseGuestDownload();
       setError(
         cause instanceof Error
           ? cause.message
@@ -398,6 +399,7 @@ function ImageCropper() {
       setError("Please apply the crop before downloading.");
       return;
     }
+    if (!(await requireLoginForDownload())) return;
 
     try {
       setDownloading(true);
@@ -424,7 +426,7 @@ function ImageCropper() {
       link.download = `${
         file.name.replace(/\.[^.]+$/, "") || "image"
       }-cropped.png`;
-      trackDownload("Image cropper", link.download, blob.size);
+      await trackDownload("Image cropper", link.download, blob.size);
 
       document.body.appendChild(link);
       link.click();

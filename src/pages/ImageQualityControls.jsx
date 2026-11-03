@@ -2,7 +2,7 @@
 import { useEffect, useState } from "react";
 import "./ImageQualityControls.css";
 import { API_USERS } from "../config/api.js";
-import { trackDownload } from "../config/downloadTracking.js";
+import { releaseGuestDownload, requireLoginForDownload, trackDownload } from "../config/downloadTracking.js";
 
 const API_BASE = API_USERS;
 const formats = {
@@ -455,6 +455,7 @@ function ImageQualityControls() {
     outputFormat = "WEBP"
   ) => {
     try {
+      if (!(await requireLoginForDownload())) return;
       setError("");
       setMessage("");
 
@@ -491,7 +492,7 @@ function ImageQualityControls() {
       const link = document.createElement("a");
       link.href = url;
       link.download = `${getFileBaseName(imageName)}-optimized.${extension}`;
-      trackDownload("Quality controls", link.download, blob.size);
+      await trackDownload("Quality controls", link.download, blob.size);
 
       document.body.appendChild(link);
       link.click();
@@ -500,6 +501,7 @@ function ImageQualityControls() {
       setTimeout(() => URL.revokeObjectURL(url), 1000);
       setMessage("Download started.");
     } catch (err) {
+      await releaseGuestDownload();
       setError(err.message || "Download failed.");
     }
   };
@@ -627,9 +629,21 @@ function ImageQualityControls() {
                   }`}
                   href={outputUrl || undefined}
                   download={downloadName}
-                  onClick={(event) => {
-                    if (!outputUrl) event.preventDefault();
-                    else trackDownload("Quality controls", downloadName);
+                  onClick={async (event) => {
+                    event.preventDefault();
+                    if (!outputUrl || !(await requireLoginForDownload())) return;
+                    try {
+                      await trackDownload("Quality controls", downloadName);
+                      const link = document.createElement("a");
+                      link.href = outputUrl;
+                      link.download = downloadName;
+                      document.body.appendChild(link);
+                      link.click();
+                      link.remove();
+                    } catch (err) {
+                      await releaseGuestDownload();
+                      setError(err instanceof Error ? err.message : "Download failed.");
+                    }
                   }}
                   aria-disabled={!outputUrl}
                 >

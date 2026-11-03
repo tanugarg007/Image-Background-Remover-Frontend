@@ -6,6 +6,7 @@ import AdminSidebar from "./AdminSidebar.jsx";
 import UsersPage from "./UsersPage.jsx";
 import RolesPermissionsPage from "./RolesPermissionsPage.jsx";
 import AdminDownloadsPage from "./AdminDownloadsPage.jsx";
+import AdminFinancePage from "./AdminFinancePage.jsx";
 import UserAccountForm from "./UserAccountForm.jsx";
 import AdminImageToolsPage from "./AdminImageToolsPage.jsx";
 import "./AdminPanel.css";
@@ -28,6 +29,7 @@ function AdminPanel({ superAdmin = false }) {
   const [accountDialog, setAccountDialog] = useState(null);
   const [accountForm, setAccountForm] = useState({ name: "", email: "", password: "", role: "user", status: "active" });
   const [savingAccount, setSavingAccount] = useState(false);
+  const [deletingUserId, setDeletingUserId] = useState("");
   const [canManageUsers, setCanManageUsers] = useState(false);
   const [search, setSearch] = useState("");
   const [activeSection, setActiveSection] = useState("users");
@@ -179,6 +181,37 @@ if (superAdmin ? !isSuperAdmin : !(isAdmin || isSuperAdmin)) {
     }
   };
 
+  const deleteAccount = async (user) => {
+    if (!window.confirm(`Delete the account for ${user.email}? This action cannot be undone.`)) return;
+    setDeletingUserId(user.id);
+    setRoleMessage("");
+    setRoleError("");
+    try {
+      const response = await fetch(`${API_USERS}/admin/users/${encodeURIComponent(user.id)}`, {
+        method: "DELETE",
+        credentials: "include",
+      });
+      const data = await response.json().catch(() => ({}));
+      if (!response.ok) throw new Error(data.message || "Could not delete account.");
+
+      setUsers((current) => current.filter((item) => item.id !== user.id));
+      setSummary((current) => ({
+        ...current,
+        total: Math.max(0, current.total - 1),
+        admins: Math.max(0, current.admins - Number(["admin", "superadmin"].includes(user.role))),
+        roleCounts: {
+          ...current.roleCounts,
+          [user.role]: Math.max(0, (current.roleCounts[user.role] || 0) - 1),
+        },
+      }));
+      setRoleMessage(`Account deleted for ${user.email}.`);
+    } catch (requestError) {
+      setRoleError(requestError instanceof Error ? requestError.message : "Could not delete account.");
+    } finally {
+      setDeletingUserId("");
+    }
+  };
+
   if (access === "checking") {
     return <main className="admin-gate"><div className="admin-gate-card"><span className="admin-gate-mark"><Sparkles size={20} /></span><p>Checking administrator access…</p></div></main>;
   }
@@ -215,13 +248,7 @@ if (superAdmin ? !isSuperAdmin : !(isAdmin || isSuperAdmin)) {
 
       <main className="admin-main">
         <header className="admin-topbar">
-          <div className="breadcrumb"><span>Console</span><span>/</span><strong>  {activeSection === "image-tools"
-      ? "Image Tools"
-      : activeSection === "users"
-        ? "Users"
-        : activeSection === "roles"
-          ? "Roles"
-          : "Downloads"}</strong></div>
+          <div className="breadcrumb"><span>Console</span><span>/</span><strong>{activeSection === "image-tools" ? "Image Tools" : activeSection === "users" ? "Users" : activeSection === "roles" ? "Roles" : activeSection === "finance" ? "Finance" : "Downloads"}</strong></div>
           <div className="topbar-user"><span className="topbar-avatar">{adminUser?.email?.slice(0, 1).toUpperCase() || "A"}</span><span>{superAdmin ? "Super admin" : "Admin"}</span></div>
         </header>
 
@@ -236,6 +263,8 @@ if (superAdmin ? !isSuperAdmin : !(isAdmin || isSuperAdmin)) {
     <>User <em>management</em></>
   ) : activeSection === "roles" ? (
     <>Roles & <em>permissions</em></>
+  ) : activeSection === "finance" ? (
+    <>Finance <em>overview</em></>
   ) : (
     <>Download <em>activity</em></>
   )}
@@ -247,10 +276,12 @@ if (superAdmin ? !isSuperAdmin : !(isAdmin || isSuperAdmin)) {
       ? "View registered accounts and manage their access."
       : activeSection === "roles"
         ? "Set clear access across your workspace."
+        : activeSection === "finance"
+          ? "Review the finance tools and billing data available to this workspace."
         : "Review who downloaded files, which tools they used, and when."}
 </p>
             </div>
-           {activeSection !== "image-tools" && (
+           {!(["image-tools", "finance"].includes(activeSection)) && (
   <button
     className="refresh-button"
     onClick={() => setReloadKey((key) => key + 1)}
@@ -276,6 +307,8 @@ if (superAdmin ? !isSuperAdmin : !(isAdmin || isSuperAdmin)) {
   />
 ) : activeSection === "downloads" ? (
   <AdminDownloadsPage reloadKey={reloadKey} />
+) : activeSection === "finance" && superAdmin ? (
+  <AdminFinancePage />
 ) : (
   <UsersPage
     users={users}
@@ -285,11 +318,15 @@ if (superAdmin ? !isSuperAdmin : !(isAdmin || isSuperAdmin)) {
     roleError={roleError}
     roleMessage={roleMessage}
     canManageUsers={canManageUsers}
+    adminUser={adminUser}
+    superAdmin={superAdmin}
+    deletingUserId={deletingUserId}
     search={search}
     setSearch={setSearch}
     filteredUsers={filteredUsers}
     openCreateAccount={openCreateAccount}
     openEditAccount={openEditAccount}
+    deleteAccount={deleteAccount}
   />
 )}      <footer className="admin-footer"><span>© 2026 Pixelcraft</span><span>Account data is loaded from MongoDB</span></footer>
         </div>

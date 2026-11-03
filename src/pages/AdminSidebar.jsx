@@ -1,6 +1,7 @@
 import { Link } from "react-router-dom";
 import {
   Download,
+  DollarSign,
   LogOut,
   ShieldCheck,
   Sparkles,
@@ -101,6 +102,17 @@ function AdminSidebar({
               >
                 <Download size={17} />
                 <span>Downloads</span>
+              </button>
+            )}
+
+            {superAdmin && (
+              <button
+                type="button"
+                className={activeSection === "finance" ? "active" : ""}
+                onClick={() => onSectionChange("finance")}
+              >
+                <DollarSign size={17} />
+                <span>Finance</span>
               </button>
             )}
           </nav>

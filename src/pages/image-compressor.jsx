@@ -4,7 +4,7 @@ import imageCompression from "browser-image-compression";
 import { Upload, Download } from "lucide-react";
 import "./compressor.css";
 import { API_USERS } from "../config/api.js";
-import { trackDownload } from "../config/downloadTracking.js";
+import { releaseGuestDownload, requireLoginForDownload, trackDownload } from "../config/downloadTracking.js";
 
 const API_BASE = API_USERS;
 function ImageCompressor() {
@@ -109,7 +109,6 @@ function ImageCompressor() {
 
   // This function runs only when the Compress button is clicked.
   const handleCompress = async () => {
-      console.log("COMPRESS BUTTON HANDLER CALLED");
     if (!original || compressionRequestRef.current) return;
 
     const dimension = Number(maxDimension);
@@ -214,14 +213,13 @@ function ImageCompressor() {
 
   // This function runs only when the Download button is clicked.
   const downloadImage = async () => {
-    console.log("DOWNLOAD BUTTON HANDLER CALLED");
-
     if (!compressionId || !original || downloadRequestRef.current) {
       if (!compressionId) {
         setError("Please compress the image first.");
       }
       return;
     }
+    if (!(await requireLoginForDownload())) return;
 
     downloadRequestRef.current = true;
     setDownloading(true);
@@ -257,12 +255,13 @@ function ImageCompressor() {
       const link = document.createElement("a");
       link.href = downloadUrl;
       link.download = `compressed-${baseName}${extension}`;
-      trackDownload("Image compressor", link.download, blob.size);
+      await trackDownload("Image compressor", link.download, blob.size);
 
       document.body.appendChild(link);
       link.click();
       link.remove();
     } catch (err) {
+      await releaseGuestDownload();
       console.error("Download error:", err);
 
       setError(

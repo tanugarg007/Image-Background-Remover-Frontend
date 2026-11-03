@@ -13,7 +13,7 @@ import {
 } from "lucide-react";
 import "./BackgroundChanger.css";
 import { API_USERS } from "../config/api.js";
-import { trackDownload } from "../config/downloadTracking.js";
+import { releaseGuestDownload, requireLoginForDownload, trackDownload } from "../config/downloadTracking.js";
 
 const API_BASE = API_USERS;
 
@@ -264,6 +264,7 @@ const selectFile = (selectedFile) => {
   
 const downloadResult = async () => {
   if (!cutoutUrl || !file || loading) return;
+  if (!(await requireLoginForDownload())) return;
 
   setLoading(true);
   setError("");
@@ -376,7 +377,7 @@ const originalName =
   file.name.replace(/\.[^.]+$/, "") || "image";
 
 link.download = `${originalName}-background.png`;
-trackDownload("Background changer", link.download);
+await trackDownload("Background changer", link.download);
 
 document.body.appendChild(link);
 link.click();
@@ -393,8 +394,11 @@ window.setTimeout(() => {
 
   }
   catch (error) {
+    await releaseGuestDownload();
     console.error("Download error:", error);
     setError(error.message || "Failed to download image.");
+  } finally {
+    setLoading(false);
   }
 };
 

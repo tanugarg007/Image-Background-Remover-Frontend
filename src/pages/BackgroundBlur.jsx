@@ -7,10 +7,9 @@ import {
   LockKeyhole,
   RefreshCw,
   Sparkles,
-  Upload,
 } from "lucide-react";
 import { API_USERS, removeBackgroundInBrowser } from "../config/api.js";
-import { trackDownload } from "../config/downloadTracking.js";
+import { releaseGuestDownload, requireLoginForDownload, trackDownload } from "../config/downloadTracking.js";
 import "./BackgroundBlur.css";
 
 const MAX_FILE_SIZE = 20 * 1024 * 1024;
@@ -29,32 +28,23 @@ function BackgroundBlur() {
   const [error, setError] = useState("");
 
   useEffect(() => {
-    if (!file) {
-      setOriginalUrl("");
-      return undefined;
-    }
-
-    const url = URL.createObjectURL(file);
-    setOriginalUrl(url);
-    return () => URL.revokeObjectURL(url);
-  }, [file]);
+    return () => {
+      if (originalUrl) URL.revokeObjectURL(originalUrl);
+    };
+  }, [originalUrl]);
 
   useEffect(() => {
-    if (!subjectBlob) {
-      setSubjectUrl("");
-      return undefined;
-    }
-
-    const url = URL.createObjectURL(subjectBlob);
-    setSubjectUrl(url);
-    return () => URL.revokeObjectURL(url);
-  }, [subjectBlob]);
+    return () => {
+      if (subjectUrl) URL.revokeObjectURL(subjectUrl);
+    };
+  }, [subjectUrl]);
 
   const chooseFile = (nextFile) => {
     if (!nextFile) return;
     setError("");
     setStatus("");
     setSubjectBlob(null);
+    setSubjectUrl("");
 
     if (!nextFile.type.startsWith("image/")) {
       setError("Choose a PNG, JPG, or WebP image.");
@@ -65,6 +55,7 @@ function BackgroundBlur() {
       return;
     }
 
+    setOriginalUrl(URL.createObjectURL(nextFile));
     setFile(nextFile);
   };
 
@@ -77,6 +68,7 @@ function BackgroundBlur() {
     try {
       const transparentSubject = await removeBackgroundInBrowser(file, setStatus);
       setSubjectBlob(transparentSubject);
+      setSubjectUrl(URL.createObjectURL(transparentSubject));
       setStatus("Subject isolated. Adjust the blur to your liking.");
     } catch (processingError) {
       setError(processingError instanceof Error
@@ -90,6 +82,7 @@ function BackgroundBlur() {
 
   const handleDownload = async () => {
     if (!file || !subjectBlob || downloading) return;
+    if (!(await requireLoginForDownload())) return;
     setDownloading(true);
     setError("");
 
@@ -99,36 +92,57 @@ function BackgroundBlur() {
       formData.append("subject", subjectBlob, "isolated-subject.png");
       formData.append("blurStrength", String(blurStrength));
 
-      const response = await fetch(`${API_USERS}/background-blur`, {
+      const saveUrl = `${API_USERS}/background-blur`;
+      setStatus(`POST ${saveUrl} — saving image…`);
+      console.info(`[Background Blur API] POST ${saveUrl}`);
+      const response = await fetch(saveUrl, {
         method: "POST",
         credentials: "include",
         body: formData,
       });
+      console.info(`[Background Blur API] POST ${saveUrl} → HTTP ${response.status}`);
 
       if (!response.ok) {
-        const contentType = response.headers.get("content-type") || "";
-        const message = contentType.includes("application/json")
-          ? (await response.json()).message
-          : "Background blur processing failed.";
-        throw new Error(message || "Background blur processing failed.");
+        const payload = await response.json().catch(() => ({}));
+        throw new Error(payload.message || "Background blur processing failed.");
       }
 
-      const output = await response.blob();
+      const payload = await response.json();
+      const downloadId = payload.data?.id;
+      if (!downloadId) {
+        throw new Error("The server did not return a background blur download ID.");
+      }
+
+      const downloadUrl = `${API_USERS}/background-blur/download/${encodeURIComponent(downloadId)}`;
+      setStatus(`Saved (HTTP ${response.status}). GET ${downloadUrl} — downloading…`);
+      console.info(`[Background Blur API] GET ${downloadUrl}`);
+      const downloadResponse = await fetch(
+        downloadUrl,
+        { credentials: "include" }
+      );
+      console.info(`[Background Blur API] GET ${downloadUrl} → HTTP ${downloadResponse.status}`);
+      if (!downloadResponse.ok) {
+        const downloadPayload = await downloadResponse.json().catch(() => ({}));
+        throw new Error(downloadPayload.message || "Could not download the blurred photo.");
+      }
+
+      const output = await downloadResponse.blob();
       if (!output.type.startsWith("image/") || output.size === 0) {
-        throw new Error("The server did not return a valid blurred image.");
+        throw new Error("The download API did not return a valid blurred image.");
       }
 
-      const downloadUrl = URL.createObjectURL(output);
+      setStatus(`Download API returned HTTP ${downloadResponse.status}. Starting file download…`);
+      const downloadFileUrl = URL.createObjectURL(output);
       const link = document.createElement("a");
-      const baseName = file.name.replace(/\.[^.]+$/, "") || "image";
-      link.href = downloadUrl;
-      link.download = `${baseName}-background-blur.png`;
-      trackDownload("Background Blur", link.download, output.size);
+      link.href = downloadFileUrl;
+      link.download = payload.data.fileName || "background-blur.png";
+      await trackDownload("Background Blur", link.download, output.size);
       document.body.appendChild(link);
       link.click();
       link.remove();
-      window.setTimeout(() => URL.revokeObjectURL(downloadUrl), 1000);
+      window.setTimeout(() => URL.revokeObjectURL(downloadFileUrl), 1000);
     } catch (downloadError) {
+      await releaseGuestDownload();
       setError(downloadError instanceof Error
         ? downloadError.message
         : "Could not download the blurred image.");
@@ -140,6 +154,8 @@ function BackgroundBlur() {
   const reset = () => {
     setFile(null);
     setSubjectBlob(null);
+    setOriginalUrl("");
+    setSubjectUrl("");
     setStatus("");
     setError("");
     if (fileInputRef.current) fileInputRef.current.value = "";
@@ -197,7 +213,7 @@ function BackgroundBlur() {
               <article className="background-blur-preview-card">
                 <div className="background-blur-preview-title"><span>01</span> Original <small>BEFORE</small></div>
                 <div className="background-blur-image-frame">
-                  <img src={originalUrl} alt="Original uploaded photo" />
+                  {originalUrl && <img src={originalUrl} alt="Original uploaded photo" />}
                   <span className="background-blur-image-chip">ORIGINAL</span>
                 </div>
               </article>
@@ -205,7 +221,7 @@ function BackgroundBlur() {
               <article className="background-blur-preview-card result-card">
                 <div className="background-blur-preview-title"><span>02</span> Soft focus <small>AFTER</small></div>
                 <div className="background-blur-image-frame result-frame">
-                  {subjectUrl ? (
+                  {subjectUrl && originalUrl ? (
                     <>
                       <img
                         className="background-blur-layer"

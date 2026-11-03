@@ -13,7 +13,7 @@ import {
 } from "lucide-react";
 import "./DownloadOptions.css";
 import { API_USERS } from "../config/api.js";
-import { trackDownload } from "../config/downloadTracking.js";
+import { releaseGuestDownload, requireLoginForDownload, trackDownload } from "../config/downloadTracking.js";
 
 const API_BASE = API_USERS;
 const MAX_FILE_SIZE = 20 * 1024 * 1024;
@@ -167,15 +167,20 @@ function DownloadOptions() {
   };
 
   // Download a single image locally
-  const downloadOne = (entry) => {
-    const link = document.createElement("a");
-    link.href = entry.url;
-    link.download = entry.file.name;
-    trackDownload("Downloads", entry.file.name, entry.file.size);
-
-    document.body.appendChild(link);
-    link.click();
-    link.remove();
+  const downloadOne = async (entry) => {
+    if (!(await requireLoginForDownload())) return;
+    try {
+      const link = document.createElement("a");
+      link.href = entry.url;
+      link.download = entry.file.name;
+      await trackDownload("Downloads", entry.file.name, entry.file.size);
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+    } catch (err) {
+      await releaseGuestDownload();
+      setError(err.message || "Download failed.");
+    }
   };
 
   // POST: Create ZIP on backend and download it
@@ -184,6 +189,7 @@ function DownloadOptions() {
       setError("Please select images first.");
       return;
     }
+    if (!(await requireLoginForDownload(files.length))) return;
 
     try {
       setZipping(true);
@@ -227,6 +233,8 @@ function DownloadOptions() {
       link.href = url;
       link.download = `images-${Date.now()}.zip`;
 
+      await trackDownload("Downloads", link.download, blob.size);
+
       document.body.appendChild(link);
       link.click();
       link.remove();
@@ -241,6 +249,7 @@ function DownloadOptions() {
       // Refresh history after the backend creates the record.
       await fetchHistory();
     } catch (err) {
+      await releaseGuestDownload();
       setError(err.message || "Something went wrong.");
     } finally {
       setZipping(false);

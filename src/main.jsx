@@ -6,15 +6,19 @@ import App from './App.jsx'
 import Login from './pages/Login.jsx'
 import Register from './pages/Register.jsx'
 import AdminPanel from './pages/AdminPanel.jsx'
+import UserDashboard from './pages/UserDashboard.jsx'
+import GuestDownloadStatus from './components/GuestDownloadStatus.jsx'
 
 createRoot(document.getElementById('root')).render(
   <StrictMode>
     <BrowserRouter>
+      <GuestDownloadStatus />
       <Routes>
         <Route path="/login" element={<Login />} />
         <Route path="/register" element={<Register />} />
         <Route path="/admin/*" element={<AdminPanel />} />
         <Route path="/superadmin/*" element={<AdminPanel superAdmin />} />
+        <Route path="/user/*" element={<UserDashboard />} />
         <Route path="*" element={<App />} />
       </Routes>
     </BrowserRouter>

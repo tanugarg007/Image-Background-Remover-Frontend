@@ -10,7 +10,7 @@ import {
 
 import "./ImageConverter.css";
 import { API_USERS } from "../config/api.js";
-import { trackDownload } from "../config/downloadTracking.js";
+import { releaseGuestDownload, requireLoginForDownload, trackDownload } from "../config/downloadTracking.js";
 
 const API_BASE = API_USERS;
 
@@ -196,6 +196,7 @@ function ImageConverter() {
       setConverted(URL.createObjectURL(previewBlob));
       setConversionId(id);
     } catch (err) {
+      await releaseGuestDownload();
       setError(
         err instanceof Error
           ? err.message
@@ -215,6 +216,7 @@ function ImageConverter() {
       setError("Please convert the image first.");
       return;
     }
+    if (!(await requireLoginForDownload())) return;
 
     try {
       setDownloading(true);
@@ -243,7 +245,7 @@ function ImageConverter() {
 
       link.href = url;
       link.download = `${name}.${format.toLowerCase()}`;
-      trackDownload("Image converter", link.download, blob.size);
+      await trackDownload("Image converter", link.download, blob.size);
 
       document.body.appendChild(link);
       link.click();

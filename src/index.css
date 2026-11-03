@@ -28,6 +28,55 @@ input {
   font: inherit;
 }
 
+.guest-download-status {
+  position: fixed;
+  right: 24px;
+  top: 96px;
+  z-index: 1000;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 11px 16px;
+  border: 1px solid #e7defe;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, .96);
+  box-shadow: 0 8px 28px rgba(51, 35, 91, .14);
+  color: #51456f;
+  font-size: 13px;
+}
+
+.guest-download-status strong {
+  color: #7657df;
+}
+
+.guest-download-status-copy {
+  display: grid;
+  gap: 2px;
+}
+
+.guest-download-status-copy small {
+  color: #817a91;
+  font-size: 11px;
+}
+
+.guest-download-status-dot {
+  width: 8px;
+  height: 8px;
+  flex: 0 0 8px;
+  border-radius: 50%;
+  background: #8a6deb;
+}
+
+.guest-download-status-error { max-width: 280px; color: #a33d53; font-size: 11px; line-height: 1.35; overflow-wrap: anywhere; }
+
+@media (max-width: 600px) {
+  .guest-download-status {
+    right: 14px;
+    top: 132px;
+  }
+  .guest-download-status-error { max-width: 180px; }
+}
+
 button {
   cursor: pointer;
 }

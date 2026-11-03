@@ -37,7 +37,7 @@ function Login() {
         ? "/superadmin"
         : data.user?.role === "admin"
           ? "/admin"
-          : "/";
+          : "/user";
       navigate(destination, { replace: true });
     } catch (error) {
       setNotice(error instanceof Error ? error.message : "Could not connect to the login service.");

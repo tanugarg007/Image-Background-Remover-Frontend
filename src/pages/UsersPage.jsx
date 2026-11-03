@@ -1,18 +1,21 @@
-import { ArrowUpRight, Pencil, Plus, Search, UserRound } from "lucide-react";
+import { ArrowUpRight, Pencil, Plus, Search, Trash2, UserRound } from "lucide-react";
 
 function UsersPage({
-  users,
   summary,
   loadingUsers,
   error,
   roleError,
   roleMessage,
   canManageUsers,
+  adminUser,
+  superAdmin,
+  deletingUserId,
   search,
   setSearch,
   filteredUsers,
   openCreateAccount,
   openEditAccount,
+  deleteAccount,
 }) {
   return (
     <>
@@ -41,7 +44,26 @@ function UsersPage({
                   <td><span className={`role-pill role-${user.role}`}>{user.role}</span></td>
                   <td><span className={`status-pill status-${user.status || "active"}`}>{user.status || "active"}</span></td>
                   <td className="joined-date">{user.createdAt ? new Date(user.createdAt).toLocaleDateString() : "—"}</td>
-                  <td>{canManageUsers ? <button className="edit-user-button" onClick={() => openEditAccount(user)}><Pencil size={13} /> Edit</button> : <span className="no-action">—</span>}</td>
+                  <td>
+                    {canManageUsers ? (
+                      <div className="user-actions">
+                        <button className="edit-user-button" type="button" onClick={() => openEditAccount(user)}><Pencil size={13} /> Edit</button>
+                        {(superAdmin || adminUser?.role === "superadmin"
+                          ? user.id !== adminUser?.id
+                          : user.role === "user") && (
+                          <button
+                            className="delete-user-button"
+                            type="button"
+                            onClick={() => deleteAccount(user)}
+                            disabled={deletingUserId === user.id}
+                            aria-label={`Delete account for ${user.email}`}
+                          >
+                            <Trash2 size={13} /> {deletingUserId === user.id ? "Deleting…" : "Delete"}
+                          </button>
+                        )}
+                      </div>
+                    ) : <span className="no-action">—</span>}
+                  </td>
                 </tr>
               ))}
             </tbody>

@@ -11,7 +11,7 @@ import {
 } from "lucide-react";
 import "./Image.css";
 import { API_USERS } from "../config/api.js";
-import { trackDownload } from "../config/downloadTracking.js";
+import { releaseGuestDownload, requireLoginForDownload, trackDownload } from "../config/downloadTracking.js";
 
 
 
@@ -197,8 +197,9 @@ function Image() {
   };
 
   // Download the processed image.
-  const handleDownload = () => {
+  const handleDownload = async () => {
     if (!processedImage || loading) return;
+    if (!(await requireLoginForDownload())) return;
 
     try {
       setError("");
@@ -207,7 +208,7 @@ function Image() {
       const link = document.createElement("a");
       link.href = processedImage;
       link.download = processedFilename || "background-removed.png";
-      trackDownload("Background removal", link.download);
+      await trackDownload("Background removal", link.download);
 
       document.body.appendChild(link);
       link.click();
@@ -215,6 +216,7 @@ function Image() {
 
       setMessage("Image downloaded successfully!");
     } catch (err) {
+      await releaseGuestDownload();
       console.error("Download error:", err);
       setError("Image download failed. Please try again.");
     }
