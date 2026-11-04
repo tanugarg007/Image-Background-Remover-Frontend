@@ -10,12 +10,9 @@ import {
   CheckCircle2,
 } from "lucide-react";
 import "./Image.css";
-import { API_USERS } from "../config/api.js";
+import { removeBackgroundInBrowser } from "../config/api.js";
 import { releaseGuestDownload, requireLoginForDownload, trackDownload } from "../config/downloadTracking.js";
 
-
-
-const API_BASE = API_USERS;
 
 function Image() {
   const fileInputRef = useRef(null);
@@ -94,7 +91,8 @@ function Image() {
     handleFile(event.dataTransfer.files?.[0]);
   };
 
-  // Remove image background using the Render backend.
+  // Run background removal in the browser so image processing does not depend
+  // on the Render service staying awake or completing a long request.
   const handleRemoveBackground = async () => {
     if (!selectedFile || loading) return;
 
@@ -110,78 +108,12 @@ function Image() {
     setProcessedFilename("");
 
     try {
-      const formData = new FormData();
-      formData.append("image", selectedFile);
-
-      const response = await fetch(
-       `${API_BASE}/remove-background`,
-        {
-          method: "POST",
-          body: formData,
-        }
-      );
-
-      if (!response.ok) {
-        const contentType =
-          response.headers.get("content-type") || "";
-
-        let errorMessage = "Background removal failed.";
-
-        if (contentType.includes("application/json")) {
-          const data = await response.json();
-          errorMessage =
-            data.message || data.error || errorMessage;
-        } else {
-           const text = await response.text();
-    errorMessage = text || `Server error: ${response.status}`;
-        }
-
-        throw new Error(
-           `HTTP ${response.status}: ${errorMessage}`
-        );
-      }
-
-      const result = await response.json();
-
-      if (
-        typeof result.filename !== "string" ||
-        !result.filename
-      ) {
-        throw new Error(
-          result.message ||
-            "The server did not provide the processed image name."
-        );
-      }
-
-      // Load the processed image from the backend.
-      const imageResponse = await fetch(
-        `${API_BASE}/backgrounddownload/${encodeURIComponent(
-          result.filename
-        )}`,
-        { cache: "no-store" }
-      );
-
-      if (!imageResponse.ok) {
-        throw new Error(
-          "Background was removed, but the processed image could not be loaded."
-        );
-      }
-
-      const imageBlob = await imageResponse.blob();
-
-      if (
-        imageBlob.size === 0 ||
-        !imageBlob.type.startsWith("image/")
-      ) {
-        throw new Error(
-          "The server did not return a valid image."
-        );
-      }
+      const imageBlob = await removeBackgroundInBrowser(selectedFile, setMessage);
 
       const resultUrl = URL.createObjectURL(imageBlob);
 
       setProcessedImage(resultUrl);
-      setProcessedFilename(result.filename);
+      setProcessedFilename("background-removed.png");
       setMessage("Background removed successfully!");
     } catch (err) {
       console.error("Background removal error:", err);
