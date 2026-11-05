@@ -15,16 +15,19 @@ function ImageCompressor() {
   const [error, setError] = useState("");
   const [quality, setQuality] = useState(80);
   const [maxDimension, setMaxDimension] = useState("1920");
+  const [contentScale, setContentScale] = useState(100);
   const [originalDimensions, setOriginalDimensions] = useState(null);
   const [compressedDimensions, setCompressedDimensions] = useState(null);
   const [previewUrl, setPreviewUrl] = useState("");
   const [compressedUrl, setCompressedUrl] = useState("");
   const [compressionId, setCompressionId] = useState("");
+  const [appliedSettings, setAppliedSettings] = useState(null);
 
   const previewUrlRef = useRef("");
   const compressedUrlRef = useRef("");
   const compressionRequestRef = useRef(false);
   const downloadRequestRef = useRef(false);
+  const compressorRef = useRef(null);
 
   // Cleanup only; no API calls here.
   useEffect(() => {
@@ -68,6 +71,32 @@ function ImageCompressor() {
     return `${(bytes / (1024 * 1024)).toFixed(2)} MB`;
   };
 
+  const addCanvasPadding = async (blob, scale, outputQuality) => {
+    if (scale >= 100) return blob;
+    const bitmap = await createImageBitmap(blob);
+    const canvas = document.createElement("canvas");
+    canvas.width = bitmap.width;
+    canvas.height = bitmap.height;
+    const context = canvas.getContext("2d");
+    if (!context) {
+      bitmap.close();
+      throw new Error("Could not prepare the resized image.");
+    }
+    context.fillStyle = "#fff";
+    context.fillRect(0, 0, canvas.width, canvas.height);
+    const drawWidth = canvas.width * (scale / 100);
+    const drawHeight = canvas.height * (scale / 100);
+    context.drawImage(bitmap, (canvas.width - drawWidth) / 2, (canvas.height - drawHeight) / 2, drawWidth, drawHeight);
+    bitmap.close();
+    return new Promise((resolve, reject) => {
+      canvas.toBlob(
+        (output) => output ? resolve(output) : reject(new Error("Could not create the padded image.")),
+        "image/jpeg",
+        outputQuality / 100,
+      );
+    });
+  };
+
   const handleFileSelect = async (file) => {
     if (!file) return;
 
@@ -80,6 +109,7 @@ function ImageCompressor() {
     setOriginal(file);
     setCompressed(null);
     setCompressionId("");
+    setAppliedSettings(null);
     setOriginalDimensions(null);
     setCompressedDimensions(null);
 
@@ -130,12 +160,14 @@ function ImageCompressor() {
 
     try {
       // Compress locally in the browser.
-      const result = await imageCompression(original, {
+      const resizedImage = await imageCompression(original, {
         maxSizeMB: 10,
         maxWidthOrHeight: dimension,
         initialQuality: quality / 100,
+        fileType: "image/jpeg",
         useWebWorker: false,
       });
+      const result = await addCanvasPadding(resizedImage, contentScale, quality);
 
       const dimensions = await getDimensions(result);
       newUrl = URL.createObjectURL(result);
@@ -189,6 +221,10 @@ function ImageCompressor() {
       setCompressedUrl(compressedUrlRef.current);
       setCompressedDimensions(dimensions);
       setCompressionId(responseData.data?._id || "");
+      setAppliedSettings({ quality, dimension, contentScale });
+      window.requestAnimationFrame(() => {
+        compressorRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+      });
 
       if (!responseData.data?._id) {
         setError(
@@ -283,9 +319,10 @@ function ImageCompressor() {
     original && compressed && original.size > 0
       ? ((original.size - compressed.size) / original.size) * 100
       : 0;
+  const settingsAreCurrent = Boolean(compressionId) && appliedSettings?.quality === quality && appliedSettings?.dimension === Number(maxDimension) && appliedSettings?.contentScale === contentScale;
 
   return (
-    <main className="compressor-page">
+    <main className="compressor-page" ref={compressorRef}>
       <h1>Image Compressor</h1>
 
       <p>
@@ -311,6 +348,13 @@ function ImageCompressor() {
           <span className="compressor-setting-hint">
             Lower quality may reduce file size. Compress again to apply.
           </span>
+          {compressed && (
+            <span className={`compressor-quality-state${appliedSettings?.quality === quality ? " is-current" : ""}`}>
+              {appliedSettings?.quality === quality
+                ? `Applied to preview: ${appliedSettings.quality}%`
+                : `Preview still uses ${appliedSettings?.quality}%. Click Compress Again to apply ${quality}%.`}
+            </span>
+          )}
         </label>
 
         <label
@@ -332,18 +376,46 @@ function ImageCompressor() {
             Maximum width or height. Original proportions are maintained.
           </span>
         </label>
+
+        <label className="compressor-setting" htmlFor="compressor-content-scale">
+          <span>Image size inside canvas <output>{contentScale}%</output></span>
+          <input
+            id="compressor-content-scale"
+            type="range"
+            min="40"
+            max="100"
+            step="5"
+            value={contentScale}
+            onChange={(event) => setContentScale(Number(event.target.value))}
+          />
+          <span className="compressor-setting-hint">Lower values add white space so the image looks smaller after download.</span>
+        </label>
       </div>
 
-      <label
-        className={`compressor-upload${original ? " has-image" : ""}`}
-      >
+      <div className={`compressor-workspace${original ? " has-image" : ""}`}>
+      <label className={`compressor-upload${original ? " has-image" : ""}`}>
         {previewUrl ? (
           <>
-            <img
-              className="compressor-preview"
-              src={previewUrl}
-              alt="Original image preview"
-            />
+            {compressedUrl ? (
+              <div className="compressor-preview-comparison">
+                <div>
+                  <span>Original</span>
+                  <img src={previewUrl} alt="Original image preview" style={{ width: "100%" }} />
+                  <small>{originalDimensions?.width} × {originalDimensions?.height} px · {formatSize(original.size)}</small>
+                </div>
+                <div>
+                  <span>Compressed</span>
+                  <img
+                    src={compressedUrl}
+                    alt="Compressed image preview"
+                    style={{ width: `${Math.max(20, Math.min(100, Math.max(compressedDimensions?.width || 0, compressedDimensions?.height || 0) / Math.max(originalDimensions?.width || 1, originalDimensions?.height || 1) * 100))}%` }}
+                  />
+                  <small>{compressedDimensions?.width} × {compressedDimensions?.height} px · {formatSize(compressed.size)}</small>
+                </div>
+              </div>
+            ) : (
+              <img className="compressor-preview" src={previewUrl} alt="Original image preview" />
+            )}
 
             <span className="compressor-selected-name">
               {original.name}
@@ -371,6 +443,37 @@ function ImageCompressor() {
         />
       </label>
 
+      {original && (
+        <div className="compressor-quick-actions">
+          <button
+            className="compressor-action"
+            type="button"
+            onClick={handleCompress}
+            disabled={loading}
+          >
+            {loading ? "Compressing..." : compressed ? "Compress Again" : "Compress Image"}
+          </button>
+          <button
+            className="compressor-action compressor-download-quick"
+            type="button"
+            onClick={downloadImage}
+            disabled={!settingsAreCurrent || downloading}
+          >
+            <Download size={18} />
+            {downloading ? "Downloading..." : "Download Compressed Image"}
+          </button>
+          {compressed && (
+            <div className="compressor-result-summary" aria-live="polite">
+              <strong>{savedPercent >= 0 ? "Size reduced" : "Size increased"}: {Math.abs(savedPercent).toFixed(1)}%</strong>
+              <span>Quality used: {appliedSettings?.quality}%</span>
+              <span>File size: {formatSize(original.size)} → {formatSize(compressed.size)}</span>
+              {!settingsAreCurrent && <span>Settings changed. Compress again to apply them.</span>}
+            </div>
+          )}
+        </div>
+      )}
+      </div>
+
       {original && originalDimensions && (
         <p>
           Original dimensions: {originalDimensions.width} ×{" "}
@@ -382,69 +485,6 @@ function ImageCompressor() {
 
       {error && <p role="alert">{error}</p>}
 
-      {original && (
-        <button
-          className="compressor-action"
-          type="button"
-          onClick={handleCompress}
-          disabled={loading}
-        >
-          {loading
-            ? "Compressing..."
-            : compressed
-              ? "Compress Again"
-              : "Compress Image"}
-        </button>
-      )}
-
-      {compressed && compressedUrl && (
-        <section className="compressor-results" aria-live="polite">
-          <h2>Compression Results</h2>
-
-          <div className="image-comparison">
-            <div>
-              <h3>Original Image</h3>
-              <img src={previewUrl} alt="Original image" />
-
-              <p>Size: {formatSize(original.size)}</p>
-
-              <p>
-                Dimensions: {originalDimensions?.width} ×{" "}
-                {originalDimensions?.height} px
-              </p>
-            </div>
-
-            <div>
-              <h3>Compressed Image</h3>
-              <img src={compressedUrl} alt="Compressed image" />
-
-              <p>Size: {formatSize(compressed.size)}</p>
-
-              <p>
-                Dimensions: {compressedDimensions?.width} ×{" "}
-                {compressedDimensions?.height} px
-              </p>
-            </div>
-          </div>
-
-          <h3>
-            {savedPercent >= 0 ? "Size reduced" : "Size increased"}:{" "}
-            {Math.abs(savedPercent).toFixed(1)}%
-          </h3>
-
-          <p>Applied quality setting: {quality}%</p>
-
-          <button
-            className="compressor-action"
-            type="button"
-            onClick={downloadImage}
-            disabled={!compressionId || downloading}
-          >
-            <Download size={18} />
-            {downloading ? "Downloading..." : "Download Compressed Image"}
-          </button>
-        </section>
-      )}
     </main>
   );
 }

@@ -1,6 +1,8 @@
 
 import { useEffect, useRef, useState } from "react";
+import JSZip from "jszip";
 import {
+  Archive,
   ArrowDownToLine,
   CheckCircle2,
   FileImage,
@@ -128,6 +130,7 @@ function BulkImageProcessing() {
   const [quality, setQuality] = useState(88);
   const [maxWidth, setMaxWidth] = useState(0);
   const [processing, setProcessing] = useState(false);
+  const [downloadingAll, setDownloadingAll] = useState(false);
   const [dragging, setDragging] = useState(false);
   const [error, setError] = useState("");
   const [apiError, setApiError] = useState("");
@@ -612,6 +615,56 @@ function BulkImageProcessing() {
     }
   };
 
+  const downloadAll = async () => {
+    const completedItems = items.filter(
+      (item) => item.status === "done" && item.outputUrl
+    );
+
+    if (!completedItems.length || downloadingAll) return;
+    if (!(await requireLoginForDownload())) return;
+
+    setDownloadingAll(true);
+    setApiError("");
+
+    try {
+      const zip = new JSZip();
+
+      for (const [index, item] of completedItems.entries()) {
+        const response = await fetch(item.outputUrl);
+        if (!response.ok) {
+          throw new Error(`Could not read ${item.file.name}.`);
+        }
+
+        const blob = await response.blob();
+        if (!blob.size) {
+          throw new Error(`${item.file.name} is empty.`);
+        }
+
+        const fileName = `${String(index + 1).padStart(2, "0")}-${getBaseName(item.file.name)}.${getExtension(item.outputFormat)}`;
+        zip.file(fileName, blob);
+      }
+
+      const zipBlob = await zip.generateAsync({ type: "blob" });
+      const downloadUrl = URL.createObjectURL(zipBlob);
+      const link = document.createElement("a");
+      link.href = downloadUrl;
+      link.download = "bulk-processed-images.zip";
+
+      await trackDownload("Bulk image processing", link.download, zipBlob.size);
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      setTimeout(() => URL.revokeObjectURL(downloadUrl), 60000);
+    } catch (err) {
+      await releaseGuestDownload();
+      setApiError(
+        err instanceof Error ? err.message : "Could not download the processed images."
+      );
+    } finally {
+      setDownloadingAll(false);
+    }
+  };
+
   const completedCount = items.filter(
     (item) => item.status === "done"
   ).length;
@@ -967,6 +1020,22 @@ function BulkImageProcessing() {
             </div>
 
             <div className="bulk-actions">
+              {completedCount > 0 && (
+                <button
+                  className="bulk-secondary"
+                  type="button"
+                  onClick={downloadAll}
+                  disabled={downloadingAll}
+                >
+                  {downloadingAll ? (
+                    <LoaderCircle className="bulk-spin" size={15} />
+                  ) : (
+                    <Archive size={15} />
+                  )}
+                  {downloadingAll ? "Preparing ZIP…" : `Download all (${completedCount})`}
+                </button>
+              )}
+
               <button
                 className="bulk-primary"
                 type="button"

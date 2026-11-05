@@ -287,13 +287,21 @@ function ImageConverter() {
       </section>
 
       <section className="converter-card">
-        <label className="converter-upload">
-          <Upload size={28} />
-
-          <h2>Upload your image</h2>
-
-          <p>Choose an image up to 20 MB.</p>
-
+        <label className={`converter-upload${original ? " has-image" : ""}`}>
+          {original ? (
+            <>
+              <img className="converter-upload-thumb" src={originalPreview} alt="" />
+              <span className="converter-upload-name" title={original.name}>{original.name}</span>
+              <span className="converter-primary-btn">Choose another image</span>
+            </>
+          ) : (
+            <>
+              <Upload size={28} />
+              <h2>Upload your image</h2>
+              <p>Choose an image up to 20 MB.</p>
+              <span className="converter-primary-btn">Choose Image</span>
+            </>
+          )}
           <input
             type="file"
             accept="image/*"
@@ -301,13 +309,11 @@ function ImageConverter() {
             hidden
           />
 
-          <span className="converter-primary-btn">
-            Choose Image
-          </span>
         </label>
 
         {original && (
           <>
+            <div className="converter-workspace">
             <div className="converter-image-grid">
               <div className="converter-image-panel">
                 <h3>Original Image</h3>
@@ -353,6 +359,7 @@ function ImageConverter() {
               </div>
             </div>
 
+            <div className="converter-tools">
             <div className="converter-settings">
               <div className="converter-setting-group">
                 <label htmlFor="output-format">
@@ -421,6 +428,8 @@ function ImageConverter() {
                     : `Download ${format}`}
                 </button>
               )}
+            </div>
+            </div>
             </div>
           </>
         )}

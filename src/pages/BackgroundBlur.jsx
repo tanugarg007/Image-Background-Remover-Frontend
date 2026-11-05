@@ -206,7 +206,20 @@ function BackgroundBlur() {
                 <span className="background-blur-section-kicker">YOUR CANVAS</span>
                 <h2>Shape the depth</h2>
               </div>
-              <button className="background-blur-reset" type="button" onClick={reset}>Choose another photo</button>
+              <div className="background-blur-workspace-actions">
+                <button className="background-blur-reset" type="button" onClick={reset}>Choose another photo</button>
+                {!subjectUrl ? (
+                  <button className="background-blur-primary" type="button" onClick={handleProcess} disabled={processing}>
+                    {processing ? <RefreshCw className="blur-spinner" size={17} /> : <Sparkles size={17} />}
+                    {processing ? "Creating depth…" : "Create background blur"}
+                  </button>
+                ) : (
+                  <button className="background-blur-primary" type="button" onClick={handleDownload} disabled={downloading}>
+                    {downloading ? <RefreshCw className="blur-spinner" size={17} /> : <ArrowDownToLine size={17} />}
+                    {downloading ? "Preparing download…" : "Download focused photo"}
+                  </button>
+                )}
+              </div>
             </div>
 
             <div className="background-blur-previews">
@@ -260,18 +273,6 @@ function BackgroundBlur() {
               />
               <div className="background-blur-range-labels"><span>SUBTLE</span><span>PORTRAIT</span><span>DREAMY</span></div>
             </div>
-
-            {!subjectUrl ? (
-              <button className="background-blur-primary" type="button" onClick={handleProcess} disabled={processing}>
-                {processing ? <RefreshCw className="blur-spinner" size={17} /> : <Sparkles size={17} />}
-                {processing ? "Creating depth…" : "Create background blur"}
-              </button>
-            ) : (
-              <button className="background-blur-primary" type="button" onClick={handleDownload} disabled={downloading}>
-                {downloading ? <RefreshCw className="blur-spinner" size={17} /> : <ArrowDownToLine size={17} />}
-                {downloading ? "Preparing download…" : "Download focused photo"}
-              </button>
-            )}
 
             {status && <p className="background-blur-status" role="status">{status}</p>}
           </div>

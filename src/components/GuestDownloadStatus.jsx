@@ -33,8 +33,8 @@ function GuestDownloadStatus() {
     <div className="guest-download-status" aria-label="Free download limit">
       <span className="guest-download-status-dot" />
       <span className="guest-download-status-copy" role="status" aria-live="polite">
-        <strong>{quota?.authenticated ? "Unlimited downloads" : quota ? `${remaining} free download${remaining === 1 ? "" : "s"} left` : notice ? "Download limit unavailable" : "Checking downloads…"}</strong>
-        {!quota?.authenticated && quota && <small>{remaining === 0 ? "Login required for more" : `${GUEST_DOWNLOAD_LIMIT} total`}</small>}
+        <strong>{quota ? `${remaining} free download${remaining === 1 ? "" : "s"} left` : notice ? "Download limit unavailable" : "Checking downloads…"}</strong>
+        {quota && <small>{quota.authenticated ? "Signed in" : remaining === 0 ? "Login required for more" : `${GUEST_DOWNLOAD_LIMIT} total`}</small>}
       </span>
       {notice && <small className="guest-download-status-error" role="status">{notice}</small>}
     </div>

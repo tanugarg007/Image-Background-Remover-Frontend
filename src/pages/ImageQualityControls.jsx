@@ -379,7 +379,7 @@ function ImageQualityControls() {
       const response = await fetch(
         `${API_BASE}/compress-image/${selectedRecord._id}`,
         {
-          method: "PUT",
+          method: "PATCH",
           headers: {
             "Content-Type": "application/json",
           },
@@ -445,6 +445,22 @@ function ImageQualityControls() {
       setError(err.message || "Delete failed.");
     } finally {
       setApiLoading(false);
+    }
+  };
+
+  const downloadOptimizedImage = async () => {
+    if (!outputUrl || !(await requireLoginForDownload())) return;
+    try {
+      await trackDownload("Quality controls", downloadName);
+      const link = document.createElement("a");
+      link.href = outputUrl;
+      link.download = downloadName;
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+    } catch (err) {
+      await releaseGuestDownload();
+      setError(err instanceof Error ? err.message : "Download failed.");
     }
   };
 
@@ -631,19 +647,7 @@ function ImageQualityControls() {
                   download={downloadName}
                   onClick={async (event) => {
                     event.preventDefault();
-                    if (!outputUrl || !(await requireLoginForDownload())) return;
-                    try {
-                      await trackDownload("Quality controls", downloadName);
-                      const link = document.createElement("a");
-                      link.href = outputUrl;
-                      link.download = downloadName;
-                      document.body.appendChild(link);
-                      link.click();
-                      link.remove();
-                    } catch (err) {
-                      await releaseGuestDownload();
-                      setError(err instanceof Error ? err.message : "Download failed.");
-                    }
+                    await downloadOptimizedImage();
                   }}
                   aria-disabled={!outputUrl}
                 >
@@ -946,6 +950,17 @@ function ImageQualityControls() {
           the compressed image and its metadata to your server.
         </footer>
       </div>
+      {file && (
+        <div className="quality-download-dock">
+          <button
+            type="button"
+            onClick={downloadOptimizedImage}
+            disabled={!outputUrl}
+          >
+            {outputUrl ? "Download Optimized Image" : "Preparing optimized image…"}
+          </button>
+        </div>
+      )}
     </main>
   );
 }

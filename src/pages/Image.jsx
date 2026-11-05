@@ -252,6 +252,27 @@ function Image() {
                 >
                   Change image
                 </button>
+
+                <div className="file-preview-actions">
+                  <button
+                    type="button"
+                    className="remove-background-button"
+                    onClick={handleRemoveBackground}
+                    disabled={loading || !selectedFile}
+                  >
+                    <Sparkles aria-hidden="true" />
+                    {loading ? "Processing..." : "Remove background"}
+                  </button>
+                  <button
+                    type="button"
+                    className="download-png-button"
+                    onClick={handleDownload}
+                    disabled={!processedImage || loading}
+                  >
+                    <Download aria-hidden="true" />
+                    Download Image
+                  </button>
+                </div>
               </div>
             </div>
           )}
@@ -360,31 +381,6 @@ function Image() {
                   )}
                 </div>
               </article>
-            </div>
-
-            {/* Action buttons */}
-            <div className="image-actions">
-              <button
-                type="button"
-                className="remove-background-button"
-                onClick={handleRemoveBackground}
-                disabled={loading || !selectedFile}
-              >
-                <Sparkles aria-hidden="true" />
-                {loading
-                  ? "Processing image..."
-                  : "Remove background"}
-              </button>
-
-              <button
-                type="button"
-                className="download-png-button"
-                onClick={handleDownload}
-                disabled={!processedImage || loading}
-              >
-                <Download aria-hidden="true" />
-                Download Image
-              </button>
             </div>
 
             {message && (

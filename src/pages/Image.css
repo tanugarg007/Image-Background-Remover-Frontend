@@ -466,6 +466,20 @@
   white-space: nowrap;
 }
 
+.file-preview-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 8px;
+}
+
+.file-preview-actions .remove-background-button,
+.file-preview-actions .download-png-button {
+  min-height: 38px;
+  padding: 0 11px;
+  font-size: 12px;
+}
+
 .change-button {
   padding: 9px 12px;
   border: 1px solid #dedbe9;
@@ -559,6 +573,11 @@
   .file-preview {
     flex-wrap: wrap;
     gap: 12px;
+  }
+
+  .file-preview-actions {
+    flex-direction: column;
+    align-items: stretch;
   }
 
   .preview-image-wrap {

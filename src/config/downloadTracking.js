@@ -1,9 +1,37 @@
 import { API_USERS } from "./api.js";
 
 export const GUEST_DOWNLOAD_LIMIT = 3;
+const LOCAL_USAGE_KEY = "citc-guest-downloads-used";
 let currentQuota = null;
 let quotaInitializationPromise = null;
 const pendingReservationIds = [];
+
+function readLocalUsage() {
+  try {
+    return Math.max(0, Number.parseInt(localStorage.getItem(LOCAL_USAGE_KEY) || "0", 10) || 0);
+  } catch {
+    return 0;
+  }
+}
+
+function storeLocalUsage(used) {
+  try {
+    localStorage.setItem(LOCAL_USAGE_KEY, String(Math.max(0, used)));
+  } catch {
+    // Backend quota remains authoritative when browser storage is unavailable.
+  }
+}
+
+function mergeLocalUsage(quota) {
+  const used = Math.max(quota.authenticated ? 0 : Number(quota.used) || 0, readLocalUsage());
+  if (used > readLocalUsage()) storeLocalUsage(used);
+  return {
+    ...quota,
+    limit: GUEST_DOWNLOAD_LIMIT,
+    used,
+    remaining: Math.max(0, GUEST_DOWNLOAD_LIMIT - used),
+  };
+}
 
 function publishQuota(quota) {
   currentQuota = quota;
@@ -35,8 +63,9 @@ export function getGuestDownloadQuota() {
   if (!quotaInitializationPromise) {
     quotaInitializationPromise = quotaRequest("/download-quota")
       .then((quota) => {
-        publishQuota(quota);
-        return quota;
+        const mergedQuota = mergeLocalUsage(quota);
+        publishQuota(mergedQuota);
+        return mergedQuota;
       })
       .catch((error) => {
         quotaInitializationPromise = null;
@@ -74,13 +103,24 @@ export async function requireLoginForDownload(imageCount = 1) {
   try {
     // The status request sets the backend-owned HttpOnly device cookie first.
     await getGuestDownloadQuota();
+    if (!currentQuota?.authenticated && Number(currentQuota?.remaining) < count) {
+      showLoginPrompt();
+      return false;
+    }
     const result = await quotaRequest("/download-quota/consume", {
       method: "POST",
       body: JSON.stringify({ count }),
     });
     if (result.authenticated) return true;
     if (result.allowed && result.reservationId) {
-      pendingReservationIds.push(result.reservationId);
+      pendingReservationIds.push({ reservationId: result.reservationId, count });
+      const remainingBeforeReservation = Number(currentQuota?.remaining ?? GUEST_DOWNLOAD_LIMIT);
+      publishQuota({
+        ...currentQuota,
+        ...result,
+        remaining: Math.max(0, Math.min(Number(result.remaining), remainingBeforeReservation - count)),
+        error: "",
+      });
       return true;
     }
     publishQuota({ ...currentQuota, ...result });
@@ -94,13 +134,15 @@ export async function requireLoginForDownload(imageCount = 1) {
 }
 
 export async function releaseGuestDownload() {
-  const reservationId = pendingReservationIds.shift();
-  if (!reservationId) return;
+  const reservation = pendingReservationIds.shift();
+  if (!reservation) return;
   try {
     await quotaRequest("/download-quota/release", {
       method: "POST",
-      body: JSON.stringify({ reservationId }),
+      body: JSON.stringify({ reservationId: reservation.reservationId }),
     });
+    quotaInitializationPromise = null;
+    await getGuestDownloadQuota();
   } catch (error) {
     console.warn("[Download quota] Could not release a failed download reservation:", error);
   }
@@ -108,7 +150,8 @@ export async function releaseGuestDownload() {
 
 export async function trackDownload(tool, fileName, fileSize) {
   if (!fileName) return;
-  const reservationId = pendingReservationIds.shift();
+  const reservation = pendingReservationIds.shift();
+  const reservationId = reservation?.reservationId;
   try {
     const response = await fetch(`${API_USERS}/download-activity`, {
       method: "POST",
@@ -123,14 +166,47 @@ export async function trackDownload(tool, fileName, fileSize) {
     });
     const result = await response.json().catch(() => ({}));
     if (!response.ok) throw new Error(result.message || "Could not confirm this download.");
+    if (reservation || currentQuota?.authenticated) {
+      const count = reservation?.count ?? 1;
+      const used = Math.max(
+        readLocalUsage() + count,
+        Number(result.used) || 0
+      );
+      storeLocalUsage(used);
+      publishQuota(mergeLocalUsage({
+        ...(currentQuota || {}),
+        limit: GUEST_DOWNLOAD_LIMIT,
+        authenticated: currentQuota?.authenticated === true,
+        used,
+        remaining: GUEST_DOWNLOAD_LIMIT - used,
+        error: "",
+      }));
+    }
     if (typeof result.used === "number") {
-      publishQuota({ ...currentQuota, used: result.used, remaining: result.remaining, error: "" });
+      publishQuota(mergeLocalUsage({
+        ...currentQuota,
+        used: result.used,
+        remaining: result.remaining,
+        error: "",
+      }));
+    }
+
+    // Re-read the backend-owned quota after a completed download so the badge
+    // stays correct across tools and browser sessions.
+    quotaInitializationPromise = null;
+    try {
+      await getGuestDownloadQuota();
+    } catch (quotaError) {
+      console.warn("[Download quota] Could not refresh the download count:", quotaError);
     }
   } catch (error) {
     if (reservationId) {
       void quotaRequest("/download-quota/release", {
         method: "POST",
         body: JSON.stringify({ reservationId }),
+      }).then(async () => {
+        quotaInitializationPromise = null;
+        await getGuestDownloadQuota();
       }).catch(() => {});
     }
     throw error;

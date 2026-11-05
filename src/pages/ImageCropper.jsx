@@ -15,6 +15,7 @@ import { releaseGuestDownload, requireLoginForDownload, trackDownload } from "..
 
 const API_BASE = API_USERS;
 const aspectOptions = [
+  { label: "Full image", value: "full" },
   { label: "Free", value: "free" },
   { label: "1:1", value: 1 },
   { label: "4:3", value: 4 / 3 },
@@ -26,6 +27,10 @@ const clamp = (value, min, max) =>
   Math.min(Math.max(value, min), max);
 
 function centeredCrop(stage, aspect) {
+  if (aspect === "full") {
+    return { x: 0, y: 0, width: stage.width, height: stage.height };
+  }
+
   const padding = 0.84;
 
   if (!stage.width || !stage.height) return null;
@@ -53,6 +58,7 @@ function ImageCropper() {
   const inputRef = useRef(null);
   const stageRef = useRef(null);
   const dragRef = useRef(null);
+  const editorRef = useRef(null);
 
   const [file, setFile] = useState(null);
   const [imageUrl, setImageUrl] = useState("");
@@ -62,7 +68,10 @@ function ImageCropper() {
     height: 0,
   });
   const [crop, setCrop] = useState(null);
-  const [aspect, setAspect] = useState("free");
+  const [aspect, setAspect] = useState("full");
+  const [fitWholeImage, setFitWholeImage] = useState(true);
+  const [imageScale, setImageScale] = useState(100);
+  const [imageOffset, setImageOffset] = useState({ x: 0, y: 0 });
   const [resultUrl, setResultUrl] = useState("");
   const [error, setError] = useState("");
   const [saving, setSaving] = useState(false);
@@ -165,6 +174,9 @@ function ImageCropper() {
     setResultUrl("");
     setCropId("");
     setCrop(null);
+    setFitWholeImage(true);
+    setImageScale(100);
+    setImageOffset({ x: 0, y: 0 });
     setStage({ width: 0, height: 0 });
   };
 
@@ -207,11 +219,33 @@ function ImageCropper() {
     };
   };
 
+  const startImagePan = (event) => {
+    if (fitWholeImage || !image || event.target.closest(".crop-selection")) return;
+    event.preventDefault();
+    event.currentTarget.setPointerCapture?.(event.pointerId);
+    dragRef.current = {
+      mode: "pan-image",
+      start: getPoint(event),
+      initialOffset: { ...imageOffset },
+    };
+  };
+
   const moveCropInteraction = (event) => {
     if (!dragRef.current) return;
 
     const point = getPoint(event);
     const { mode, start, initial } = dragRef.current;
+
+    if (mode === "pan-image") {
+      const { initialOffset } = dragRef.current;
+      const maxOffsetX = (stage.width * (1 - imageScale / 100)) / 2;
+      const maxOffsetY = (stage.height * (1 - imageScale / 100)) / 2;
+      setImageOffset({
+        x: clamp(initialOffset.x + point.x - start.x, -maxOffsetX, maxOffsetX),
+        y: clamp(initialOffset.y + point.y - start.y, -maxOffsetY, maxOffsetY),
+      });
+      return;
+    }
 
     if (mode === "move") {
       setCrop({
@@ -234,7 +268,7 @@ function ImageCropper() {
     let width = Math.max(35, initial.width + point.x - start.x);
     let height = Math.max(35, initial.height + point.y - start.y);
 
-    if (aspect !== "free") {
+    if (typeof aspect === "number") {
       if (width / height > aspect) {
         width = height * aspect;
       } else {
@@ -245,7 +279,7 @@ function ImageCropper() {
     width = Math.min(width, stage.width - initial.x);
     height = Math.min(height, stage.height - initial.y);
 
-    if (aspect !== "free") {
+    if (typeof aspect === "number") {
       if (width / height > aspect) {
         width = height * aspect;
       } else {
@@ -270,36 +304,53 @@ function ImageCropper() {
       return;
     }
 
-    const scaleX = image.naturalWidth / stage.width;
-    const scaleY = image.naturalHeight / stage.height;
+    let sourceX = 0;
+    let sourceY = 0;
+    let sourceWidth;
+    let sourceHeight;
+    let canvasWidth;
+    let canvasHeight;
+    let destinationX = 0;
+    let destinationY = 0;
+    let destinationWidth;
+    let destinationHeight;
 
-    const sourceX = clamp(
-      Math.round(crop.x * scaleX),
-      0,
-      image.naturalWidth - 1
-    );
-
-    const sourceY = clamp(
-      Math.round(crop.y * scaleY),
-      0,
-      image.naturalHeight - 1
-    );
-
-    const sourceWidth = clamp(
-      Math.round(crop.width * scaleX),
-      1,
-      image.naturalWidth - sourceX
-    );
-
-    const sourceHeight = clamp(
-      Math.round(crop.height * scaleY),
-      1,
-      image.naturalHeight - sourceY
-    );
+    if (fitWholeImage) {
+      sourceWidth = image.naturalWidth;
+      sourceHeight = image.naturalHeight;
+      const targetRatio = typeof aspect === "number"
+        ? aspect
+        : sourceWidth / sourceHeight;
+      const sourceRatio = sourceWidth / sourceHeight;
+      if (sourceRatio > targetRatio) {
+        canvasWidth = sourceWidth;
+        canvasHeight = Math.ceil(sourceWidth / targetRatio);
+      } else {
+        canvasHeight = sourceHeight;
+        canvasWidth = Math.ceil(sourceHeight * targetRatio);
+      }
+      destinationWidth = sourceWidth * (imageScale / 100);
+      destinationHeight = sourceHeight * (imageScale / 100);
+      destinationX = (canvasWidth - destinationWidth) / 2;
+      destinationY = (canvasHeight - destinationHeight) / 2;
+    } else {
+      const scaleX = image.naturalWidth / stage.width;
+      const scaleY = image.naturalHeight / stage.height;
+      sourceWidth = image.naturalWidth;
+      sourceHeight = image.naturalHeight;
+      canvasWidth = Math.max(1, Math.round(crop.width * scaleX));
+      canvasHeight = Math.max(1, Math.round(crop.height * scaleY));
+      const imageLeft = (stage.width * (1 - imageScale / 100)) / 2 + imageOffset.x;
+      const imageTop = (stage.height * (1 - imageScale / 100)) / 2 + imageOffset.y;
+      destinationX = (imageLeft - crop.x) * scaleX;
+      destinationY = (imageTop - crop.y) * scaleY;
+      destinationWidth = image.naturalWidth * (imageScale / 100);
+      destinationHeight = image.naturalHeight * (imageScale / 100);
+    }
 
     const canvas = document.createElement("canvas");
-    canvas.width = sourceWidth;
-    canvas.height = sourceHeight;
+    canvas.width = canvasWidth;
+    canvas.height = canvasHeight;
 
     const context = canvas.getContext("2d");
 
@@ -314,10 +365,10 @@ function ImageCropper() {
       sourceY,
       sourceWidth,
       sourceHeight,
-      0,
-      0,
-      sourceWidth,
-      sourceHeight
+      destinationX,
+      destinationY,
+      destinationWidth,
+      destinationHeight
     );
 
     setSaving(true);
@@ -342,8 +393,8 @@ function ImageCropper() {
       body.append("originalFileName", file.name);
       body.append("originalFormat", file.type || "image/png");
       body.append("originalSize", String(file.size));
-      body.append("width", String(sourceWidth));
-      body.append("height", String(sourceHeight));
+      body.append("width", String(canvasWidth));
+      body.append("height", String(canvasHeight));
       body.append("cropX", String(sourceX));
       body.append("cropY", String(sourceY));
       body.append("cropWidth", String(sourceWidth));
@@ -382,6 +433,9 @@ function ImageCropper() {
 
       setResultUrl(URL.createObjectURL(blob));
       setCropId(id);
+      window.requestAnimationFrame(() => {
+        editorRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+      });
     } catch (cause) {
       await releaseGuestDownload();
       setError(
@@ -476,7 +530,7 @@ function ImageCropper() {
         </p>
       </header>
 
-      <section className="crop-editor" aria-label="Image cropper">
+      <section className="crop-editor" aria-label="Image cropper" ref={editorRef}>
         <div className="crop-toolbar">
           <div className="crop-tool-title">
             <span>
@@ -510,19 +564,43 @@ function ImageCropper() {
               loadFile(event.dataTransfer.files?.[0]);
             }}
           >
-            {image ? (
+            {resultUrl ? (
+              <div className="crop-result-preview">
+                <h2>{fitWholeImage ? "Full image fitted" : "Crop applied"}</h2>
+                <p className="crop-result-description">
+                  {fitWholeImage
+                    ? `Whole image kept · ${aspectOptions.find((option) => option.value === aspect)?.label || "Full image"} frame · transparent padding`
+                    : `Crop applied · ${aspectOptions.find((option) => option.value === aspect)?.label || "Free"} frame`}
+                </p>
+                <img src={resultUrl} alt="Cropped result" />
+                <button
+                  type="button"
+                  className="crop-secondary"
+                  onClick={() => {
+                    setResultUrl("");
+                    setCropId("");
+                    setFitWholeImage(true);
+                  }}
+                >
+                  Adjust crop
+                </button>
+              </div>
+            ) : image ? (
               <div
-                className="crop-stage"
+                className={`crop-stage${!fitWholeImage && imageScale < 100 ? " is-pannable" : ""}`}
                 style={{
                   width: stage.width,
                   height: stage.height,
                   backgroundImage: `url("${imageUrl}")`,
+                  backgroundSize: `${imageScale}% ${imageScale}%`,
+                  backgroundPosition: `calc(50% + ${imageOffset.x}px) calc(50% + ${imageOffset.y}px)`,
                 }}
+                onPointerDown={startImagePan}
                 onPointerMove={moveCropInteraction}
                 onPointerUp={finishCropInteraction}
                 onPointerCancel={finishCropInteraction}
               >
-                {crop && (
+                {crop && !fitWholeImage && (
                   <>
                     <div
                       className="crop-dim"
@@ -643,38 +721,45 @@ function ImageCropper() {
               ))}
             </div>
 
-            {file && (
-              <div className="crop-file-card">
-                <div className="crop-file-icon">
-                  <ImagePlus size={16} />
-                </div>
+            <label className="crop-fit-option">
+              <input
+                type="checkbox"
+                checked={fitWholeImage}
+                disabled={!image}
+                onChange={(event) => {
+                  setFitWholeImage(event.target.checked);
+                  setImageOffset({ x: 0, y: 0 });
+                  setResultUrl("");
+                  setCropId("");
+                }}
+              />
+              <span>
+                <strong>Fit whole image</strong>
+                <small>Keep the full photo inside the selected ratio. Empty space will be transparent.</small>
+              </span>
+            </label>
 
-                <div>
-                  <strong title={file.name}>{file.name}</strong>
-                  <small>
-                    {image
-                      ? `${image.naturalWidth} × ${image.naturalHeight}`
-                      : "Loading image…"}
-                  </small>
-                </div>
-              </div>
-            )}
-
-            <div className="crop-hint">
-              <span>✦</span>
-              <p>
-                <strong>Fine-tune your frame</strong>
-                <small>
-                  Drag inside the crop area to reposition. Pull the
-                  corner handle to resize.
-                </small>
-              </p>
-            </div>
-
-            {error && (
-              <p className="crop-error" role="alert">
-                {error}
-              </p>
+            {image && (
+              <label className="crop-image-scale" htmlFor="crop-image-scale">
+                <span><strong>Image size</strong><output>{imageScale}%</output></span>
+                <input
+                  id="crop-image-scale"
+                  type="range"
+                  min="30"
+                  max="100"
+                  step="5"
+                  value={imageScale}
+                  onChange={(event) => {
+                    setImageScale(Number(event.target.value));
+                    setImageOffset({ x: 0, y: 0 });
+                    setResultUrl("");
+                    setCropId("");
+                  }}
+                />
+                <small>{fitWholeImage
+                  ? "Make the whole photo smaller inside the selected ratio."
+                  : "Scale the photo inside the crop frame. Drag the photo to reposition it."}</small>
+              </label>
             )}
 
             <div className="crop-actions">
@@ -699,10 +784,7 @@ function ImageCropper() {
                   }
                 >
                   {saving ? (
-                    <RotateCcw
-                      className="crop-working"
-                      size={16}
-                    />
+                    <RotateCcw className="crop-working" size={16} />
                   ) : resultUrl ? (
                     <Download size={16} />
                   ) : (
@@ -730,6 +812,41 @@ function ImageCropper() {
               )}
             </div>
 
+            {file && (
+              <div className="crop-file-card">
+                <div className="crop-file-icon">
+                  <ImagePlus size={16} />
+                </div>
+
+                <div>
+                  <strong title={file.name}>{file.name}</strong>
+                  <small>
+                    {image
+                      ? `${image.naturalWidth} × ${image.naturalHeight}`
+                      : "Loading image…"}
+                  </small>
+                </div>
+              </div>
+            )}
+
+            <div className="crop-hint">
+              <span>✦</span>
+              <p>
+                <strong>{fitWholeImage ? "Full image fit" : "Fine-tune your frame"}</strong>
+                <small>
+                  {fitWholeImage
+                    ? "The whole photo stays visible inside the selected ratio. Turn this off to crop manually."
+                    : "Drag inside the crop area to reposition. Pull the corner handle to resize."}
+                </small>
+              </p>
+            </div>
+
+            {error && (
+              <p className="crop-error" role="alert">
+                {error}
+              </p>
+            )}
+
             <p className="crop-private">
               Cropping happens on your device; saving and downloading
               use your backend.
@@ -737,13 +854,6 @@ function ImageCropper() {
           </aside>
         </div>
       </section>
-
-      {resultUrl && (
-        <section className="crop-result">
-          <h2>Cropped image preview</h2>
-          <img src={resultUrl} alt="Cropped result" />
-        </section>
-      )}
 
       <input
         ref={inputRef}

@@ -48,6 +48,7 @@
   border-radius: 19px;
   background: #fff;
   box-shadow: 0 20px 60px rgba(47, 38, 84, 0.085), 0 2px 8px rgba(28, 25, 38, 0.03);
+  scroll-margin-top: 16px;
 }
 
 .crop-toolbar {
@@ -138,6 +139,40 @@
   background: #f4f3f2;
 }
 
+.crop-result-preview {
+  display: flex;
+  width: 100%;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+}
+
+.crop-result-preview h2 {
+  margin: 0;
+  color: #514d59;
+  font-size: 14px;
+}
+
+.crop-result-description {
+  margin: -6px 0 0;
+  color: #777184;
+  font-size: 11px;
+  text-align: center;
+}
+
+.crop-result-preview img {
+  display: block;
+  max-width: 100%;
+  max-height: min(48vh, 390px);
+  object-fit: contain;
+  border: 1px solid #e4e1ea;
+  border-radius: 10px;
+  background: #fff;
+  box-shadow: 0 8px 25px rgba(40, 35, 57, 0.08);
+}
+
+.crop-result-preview .crop-secondary { padding: 0 14px; }
+
 .crop-upload {
   width: 100%;
   min-height: 430px;
@@ -214,6 +249,9 @@
   touch-action: none;
   user-select: none;
 }
+
+.crop-stage.is-pannable { cursor: grab; }
+.crop-stage.is-pannable:active { cursor: grabbing; }
 
 .crop-dim {
   position: absolute;
@@ -310,6 +348,39 @@
   background: #f6f4ff;
 }
 
+.crop-fit-option {
+  display: flex;
+  align-items: flex-start;
+  gap: 9px;
+  padding: 11px 10px;
+  border: 1px solid #e9e6f3;
+  border-radius: 10px;
+  background: #faf9ff;
+  cursor: pointer;
+}
+
+.crop-fit-option input { margin: 2px 0 0; accent-color: #6553d1; }
+.crop-fit-option span { display: block; }
+.crop-fit-option strong,
+.crop-fit-option small { display: block; }
+.crop-fit-option strong { color: #514d59; font-size: 10px; }
+.crop-fit-option small { margin-top: 5px; color: #89839c; font-size: 9px; line-height: 1.45; }
+
+.crop-image-scale {
+  display: flex;
+  flex-direction: column;
+  gap: 9px;
+  padding: 11px 10px;
+  border: 1px solid #e9e6f3;
+  border-radius: 10px;
+  background: #faf9ff;
+}
+
+.crop-image-scale > span { display: flex; justify-content: space-between; color: #514d59; font-size: 10px; }
+.crop-image-scale output { color: #604ecb; font-weight: 750; }
+.crop-image-scale input { width: 100%; accent-color: #6553d1; }
+.crop-image-scale small { color: #89839c; font-size: 9px; line-height: 1.45; }
+
 .crop-file-card {
   display: flex;
   align-items: center;
@@ -387,7 +458,7 @@
 .crop-actions {
   display: grid;
   gap: 8px;
-  margin-top: auto;
+  margin-top: 0;
 }
 
 .crop-primary {
@@ -441,8 +512,7 @@
   .crop-layout { grid-template-columns: 1fr; }
   .crop-workspace { min-height: 390px; padding: 16px; }
   .crop-upload { min-height: 350px; }
-  .crop-controls { border-top: 1px solid #efedf0; border-left: 0; }
-  .crop-actions { margin-top: 0; }
+  .crop-controls { order: -1; border-top: 1px solid #efedf0; border-left: 0; }
 }
 
 @media (max-width: 420px) {

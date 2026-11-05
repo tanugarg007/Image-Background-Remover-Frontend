@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { LockKeyhole, ShieldCheck, Sparkles, UserRound, Users } from "lucide-react";
+import { CheckCircle2, LockKeyhole, ShieldCheck, Sparkles, UserRound, Users } from "lucide-react";
 import { API_USERS } from "../config/api.js";
 
 const builtInRoleOptions = [
@@ -70,6 +70,12 @@ function RolesPermissionsPage({ superAdmin, users = [], loadingUsers = false, on
   const [newRoleName, setNewRoleName] = useState("");
   const [creatingRole, setCreatingRole] = useState(false);
   const [roleFormOpen, setRoleFormOpen] = useState(false);
+
+  useEffect(() => {
+    if (!saveMessage) return undefined;
+    const timeout = window.setTimeout(() => setSaveMessage(""), 3000);
+    return () => window.clearTimeout(timeout);
+  }, [saveMessage]);
 
   useEffect(() => {
     const controller = new AbortController();
@@ -154,7 +160,9 @@ function RolesPermissionsPage({ superAdmin, users = [], loadingUsers = false, on
       if (!response.ok) throw new Error(data.message || "Could not update role permission.");
       setPermissions(data.permissions || initialPermissions);
       setDraftPermissions(data.permissions || initialPermissions);
-      setSaveMessage("Permissions saved.");
+      const roleLabel = roleOptions.find((role) => role.key === selectedRole)?.label || selectedRole;
+      setSelectedRole("");
+      setSaveMessage(`${roleLabel} permissions saved successfully.`);
     } catch (error) {
       setSaveError(error.message || "Could not update role permission.");
     } finally {
@@ -188,7 +196,15 @@ function RolesPermissionsPage({ superAdmin, users = [], loadingUsers = false, on
           <label htmlFor="role-name">Role name</label>
           <div className={`role-name-control role-name-${selectedRole}`}>
             {SelectedRoleIcon && <span className="role-name-icon"><SelectedRoleIcon size={16} /></span>}
-            <select id="role-name" value={selectedRole} onChange={(event) => { setSelectedRole(event.target.value); setSaveError(""); setSaveMessage(""); }}>
+            <select id="role-name" value={selectedRole} onChange={(event) => {
+              const role = event.target.value;
+              setSelectedRole(role);
+              setSaveError("");
+              setSaveMessage("");
+              if (role && superAdmin) {
+                setDraftPermissions((current) => ({ ...current, [role]: emptyPermissions() }));
+              }
+            }}>
               <option value="">Select a role</option>
               {roleOptions.map((role) => <option value={role.key} key={role.key}>{role.label}</option>)}
             </select>
@@ -198,7 +214,6 @@ function RolesPermissionsPage({ superAdmin, users = [], loadingUsers = false, on
 
         {loadError && <p className="admin-error role-settings-error" role="alert">{loadError}</p>}
         {saveError && <p className="admin-error role-settings-error" role="alert">{saveError}</p>}
-        {saveMessage && <p className="admin-success role-settings-success" role="status">{saveMessage}</p>}
 
         {permissionGroups.map((group) => (
           <section className="role-permission-group" key={group.title} aria-label={group.title}>
@@ -223,9 +238,10 @@ function RolesPermissionsPage({ superAdmin, users = [], loadingUsers = false, on
         ))}
 
         <div className="role-settings-footer">
-          <span>{!selectedRole ? "Choose a role to continue." : loadingPermissions ? "Loading permissions..." : hasUnsavedChanges ? "You have unsaved changes." : superAdmin ? "Select permissions, then save your changes." : "Only a superadmin can change permissions."}</span>
+          <span>{!selectedRole ? "Choose a role to continue." : loadingPermissions ? "Loading permissions..." : hasUnsavedChanges ? "You have unsaved changes." : superAdmin ? "Permissions are up to date." : "Only a superadmin can change permissions."}</span>
           {savingKey && <span className="role-saving-indicator">Saving...</span>}
-          {selectedRole && superAdmin && <button type="button" className="role-save-button" onClick={savePermissions} disabled={!canEditPermissions || !hasUnsavedChanges}>{savingKey ? "Saving..." : "Save permissions"}</button>}
+          {saveMessage && <p className="admin-success role-settings-success" role="status"><CheckCircle2 size={17} /><span>{saveMessage}</span></p>}
+          {selectedRole && superAdmin && <button type="button" className="role-save-button" onClick={savePermissions} disabled={!canEditPermissions || !hasUnsavedChanges}>{savingKey === selectedRole ? "Saving..." : "Save permissions"}</button>}
         </div>
       </section>
 
