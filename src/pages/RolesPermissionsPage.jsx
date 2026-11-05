@@ -4,6 +4,7 @@ import { API_USERS } from "../config/api.js";
 
 const builtInRoleOptions = [
   { key: "user", label: "User", description: "Standard account" },
+  { key: "manager", label: "Manager", description: "Manager account" },
   { key: "admin", label: "Admin", description: "Account management" },
   { key: "superadmin", label: "Superadmin", description: "Full platform access" },
 ];
@@ -51,6 +52,7 @@ const emptyPermissions = () => Object.fromEntries(permissionGroups.flatMap((grou
 const toolPermissions = Object.fromEntries(permissionGroups[0].permissions.map(({ key }) => [key, true]));
 const initialPermissions = {
   user: { ...emptyPermissions(), ...toolPermissions, viewDownloadHistory: true, manageDownloadHistory: true },
+  manager: emptyPermissions(),
   admin: { ...emptyPermissions(), ...toolPermissions, viewDownloadHistory: true, manageDownloadHistory: true, viewUsers: true, createUsers: true, editUsers: true, manageStatus: true, viewRolePermissions: true },
   superadmin: Object.fromEntries(Object.keys(emptyPermissions()).map((key) => [key, true])),
 };

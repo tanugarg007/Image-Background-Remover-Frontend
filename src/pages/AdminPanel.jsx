@@ -19,6 +19,7 @@ function AdminPanel({ superAdmin = false }) {
   const [summary, setSummary] = useState({ total: 0, admins: 0, roleCounts: { user: 0, admin: 0, superadmin: 0 } });
   const [availableRoles, setAvailableRoles] = useState([
     { key: "user", label: "User" },
+    { key: "manager", label: "Manager" },
     { key: "admin", label: "Admin" },
     { key: "superadmin", label: "Superadmin" },
   ]);
