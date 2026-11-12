@@ -17,6 +17,7 @@ import {
 } from "lucide-react";
 import "./BulkImageProcessing.css";
 import { API_USERS } from "../config/api.js";
+import { showToast } from "../config/toast.js";
 import { releaseGuestDownload, requireLoginForDownload, trackDownload } from "../config/downloadTracking.js";
 
 const API_BASE = API_USERS;
@@ -204,6 +205,9 @@ function BulkImageProcessing() {
     setItems((current) =>
       current.filter((item) => item.id !== id)
     );
+    if (removed) {
+      showToast("success", "Image removed", removed.file.name);
+    }
   };
 
   // Clear queue and delete the saved batch if present.
@@ -249,13 +253,22 @@ function BulkImageProcessing() {
 
         setBatchId(null);
       } catch (err) {
-        setApiError(
-          err instanceof Error
-            ? `Queue cleared locally, but database deletion failed: ${err.message}`
-            : "Queue cleared locally, but database deletion failed."
-        );
+        const message = err instanceof Error
+          ? `Queue cleared locally, but database deletion failed: ${err.message}`
+          : "Queue cleared locally, but database deletion failed.";
+        setApiError(message);
+        showToast("error", "Could not delete saved batch", message);
+        return;
       }
     }
+
+    showToast(
+      "success",
+      batchId ? "Saved batch deleted" : "Queue cleared",
+      batchId
+        ? "The saved batch and its images were removed."
+        : "Images were removed from the processing queue."
+    );
   };
 
   const patchItem = (id, changes) => {
@@ -551,12 +564,13 @@ function BulkImageProcessing() {
       } else {
         await saveBatch([result]);
       }
+      showToast("success", "Image updated", item.file.name);
     } catch (cause) {
-      setApiError(
-        cause instanceof Error
-          ? cause.message
-          : "Could not update the saved batch."
-      );
+      const message = cause instanceof Error
+        ? cause.message
+        : "Could not update the saved batch.";
+      setApiError(message);
+      showToast("error", "Image update failed", message);
     } finally {
       setProcessing(false);
     }

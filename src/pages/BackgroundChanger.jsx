@@ -300,13 +300,11 @@ const originalName =
   file.name.replace(/\.[^.]+$/, "") || "image";
 
 link.download = `${originalName}-background.png`;
-await trackDownload("Background changer", link.download);
+await trackDownload("Background changer", link.download, savedImage.size);
 
 document.body.appendChild(link);
 link.click();
 link.remove();
-
-setMessage("Image downloaded successfully!");
 
 window.setTimeout(() => {
   if (downloadUrl) {

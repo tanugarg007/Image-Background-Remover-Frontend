@@ -1,14 +1,28 @@
 import { useState } from "react";
-import { ArrowLeft, ArrowUpRight, Eye, EyeOff, LockKeyhole, Mail, ShieldCheck, Sparkles } from "lucide-react";
+import { ArrowLeft, ArrowRight, ArrowUpRight, CheckCircle2, Eye, EyeOff, LockKeyhole, Mail, ShieldCheck, Sparkles } from "lucide-react";
 import { Link, useNavigate } from "react-router-dom";
 import { API_USERS } from "../config/api.js";
 import "./Login.css";
+
+function getSafeReturnTo() {
+  const requestedPath = new URLSearchParams(window.location.search).get("returnTo");
+  if (!requestedPath || !requestedPath.startsWith("/") || requestedPath.startsWith("//")) return "";
+
+  try {
+    const target = new URL(requestedPath, window.location.origin);
+    if (target.origin !== window.location.origin || target.pathname === "/login") return "";
+    return `${target.pathname}${target.search}${target.hash}`;
+  } catch {
+    return "";
+  }
+}
 
 function Login() {
   const navigate = useNavigate();
   const [showPassword, setShowPassword] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [notice, setNotice] = useState("");
+  const [loginSuccess, setLoginSuccess] = useState(null);
 
   const handleSubmit = async (event) => {
     event.preventDefault();
@@ -33,18 +47,42 @@ function Login() {
         throw new Error(data.message || "Could not sign in.");
       }
 
-      const destination = data.user?.role === "superadmin"
+      const role = data.user?.role || "user";
+      const destination = role === "superadmin"
         ? "/superadmin"
-        : data.user?.role === "admin"
+        : role === "admin"
           ? "/admin"
-          : "/user";
-      navigate(destination, { replace: true });
+          : getSafeReturnTo() || "/user";
+      setLoginSuccess({ destination, role });
     } catch (error) {
       setNotice(error instanceof Error ? error.message : "Could not connect to the login service.");
     } finally {
       setIsSubmitting(false);
     }
   };
+
+  if (loginSuccess) {
+    return (
+      <main className="login-success-page">
+        <div className="login-success-glow login-success-glow-one" />
+        <div className="login-success-glow login-success-glow-two" />
+        <section className="login-success-card" role="status" aria-live="polite">
+          <Link to="/" className="login-success-brand"><span><Sparkles size={18} /></span> Pixelcraft</Link>
+          <div className="login-success-content">
+            <div className="login-success-icon"><CheckCircle2 size={31} strokeWidth={1.8} /></div>
+            <span className="login-success-eyebrow">ACCESS CONFIRMED <i /></span>
+            <h1>Welcome back<span>.</span></h1>
+            <p>You’re signed in with the <strong>{loginSuccess.role}</strong> role.<br />Everything is ready for you.</p>
+            <button type="button" className="login-success-continue" onClick={() => navigate(loginSuccess.destination, { replace: true })}>
+              Open my workspace <ArrowRight size={17} />
+            </button>
+            <div className="login-success-secure"><ShieldCheck size={14} /> Securely connected to your workspace</div>
+          </div>
+          <div className="login-success-bottom"><span>PIXELCRAFT</span><span>YOUR CREATIVE SPACE</span></div>
+        </section>
+      </main>
+    );
+  }
 
   return (
     <main className="login-page">
@@ -59,9 +97,9 @@ function Login() {
           </Link>
 
           <div className="showcase-copy">
-            <span className="showcase-kicker"><span /> YOUR CREATIVE SPACE</span>
+            <span className="showcase-kicker"><span /> YOUR PIXELCRAFT WORKSPACE</span>
             <h1>Make room<br />for <em>better ideas.</em></h1>
-            <p>Sign in to pick up where your creativity left off.</p>
+            <p>Sign in to continue to your Pixelcraft workspace.</p>
           </div>
 
           <div className="showcase-art" aria-hidden="true">
@@ -94,7 +132,7 @@ function Login() {
               <div className="welcome-icon"><LockKeyhole size={19} strokeWidth={1.8} /></div>
               <span className="login-eyebrow">WELCOME BACK</span>
               <h2 id="login-heading">Sign in to your<br />creative space.</h2>
-              <p>Enter your details below to continue.</p>
+              <p>Enter your email and password to continue.</p>
             </div>
 
             <form className="login-form" onSubmit={handleSubmit}>
@@ -147,7 +185,7 @@ function Login() {
                 {!isSubmitting && <ArrowUpRight size={17} strokeWidth={2} />}
               </button>
 
-              {notice && <p className="login-notice" role="status">{notice}</p>}
+              {notice && <p className="login-notice" role="alert">{notice}</p>}
             </form>
 
             <p className="login-signup">

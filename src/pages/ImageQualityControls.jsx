@@ -2,6 +2,7 @@
 import { useEffect, useState } from "react";
 import "./ImageQualityControls.css";
 import { API_USERS } from "../config/api.js";
+import { showToast } from "../config/toast.js";
 import { releaseGuestDownload, requireLoginForDownload, trackDownload } from "../config/downloadTracking.js";
 
 const API_BASE = API_USERS;
@@ -58,6 +59,10 @@ function ImageQualityControls() {
     width: 0,
     height: 0,
   });
+  const [originalDimensions, setOriginalDimensions] = useState({
+    width: 0,
+    height: 0,
+  });
 
   const [history, setHistory] = useState([]);
   const [selectedRecord, setSelectedRecord] = useState(null);
@@ -88,6 +93,11 @@ function ImageQualityControls() {
       : quality < 82
         ? "Balanced"
         : "High quality";
+
+  const previewWidthPercent =
+    outputBlob && originalDimensions.width > 0
+      ? Math.min(100, (dimensions.width / originalDimensions.width) * 100)
+      : 100;
 
   // Load saved compression history.
   const loadHistory = async () => {
@@ -165,6 +175,10 @@ function ImageQualityControls() {
         setOutputUrl("");
 
         bitmap = await createImageBitmap(file);
+        setOriginalDimensions({
+          width: bitmap.width,
+          height: bitmap.height,
+        });
 
         const scale =
           maxWidth > 0 && bitmap.width > maxWidth
@@ -406,11 +420,20 @@ function ImageQualityControls() {
       }
 
       setShowUpdateForm(false);
-      setMessage(result.message || "Record updated successfully.");
+      showToast(
+        "success",
+        "Image settings updated",
+        result.message || "The saved image record was updated."
+      );
 
       await loadHistory();
     } catch (err) {
       setError(err.message || "Unable to update record.");
+      showToast(
+        "error",
+        "Update failed",
+        err.message || "Unable to update the saved image record."
+      );
     } finally {
       setApiLoading(false);
     }
@@ -439,10 +462,19 @@ function ImageQualityControls() {
         setShowUpdateForm(false);
       }
 
-      setMessage(result.message || "Record deleted successfully.");
+      showToast(
+        "success",
+        "Image record deleted",
+        result.message || "The saved image record was deleted."
+      );
       await loadHistory();
     } catch (err) {
       setError(err.message || "Delete failed.");
+      showToast(
+        "error",
+        "Delete failed",
+        err.message || "Could not delete the saved image record."
+      );
     } finally {
       setApiLoading(false);
     }
@@ -451,7 +483,7 @@ function ImageQualityControls() {
   const downloadOptimizedImage = async () => {
     if (!outputUrl || !(await requireLoginForDownload())) return;
     try {
-      await trackDownload("Quality controls", downloadName);
+      await trackDownload("Quality controls", downloadName, outputBlob?.size);
       const link = document.createElement("a");
       link.href = outputUrl;
       link.download = downloadName;
@@ -545,18 +577,72 @@ function ImageQualityControls() {
           {file && (
             <div className="quality-layout">
               <section className="quality-preview-panel">
-                <h3>Live Preview</h3>
+                <div className="quality-preview-header">
+                  <h3>Before &amp; After Preview</h3>
+                  {outputBlob && (
+                    <span
+                      className={`quality-width-change ${
+                        previewWidthPercent < 100 ? "is-reduced" : ""
+                      }`}
+                    >
+                      {previewWidthPercent < 100
+                        ? `Width reduced to ${Math.round(previewWidthPercent)}%`
+                        : "Original width"}
+                    </span>
+                  )}
+                </div>
 
-                {(outputUrl || sourceUrl) && (
-                  <img
-                    className="quality-preview-image"
-                    src={outputUrl || sourceUrl}
-                    alt={`Preview of ${file.name}`}
-                  />
-                )}
+                <div className="quality-comparison-grid">
+                  <div className="quality-comparison-card">
+                    <div className="quality-comparison-label">
+                      <strong>Original</strong>
+                      <small>
+                        {originalDimensions.width
+                          ? `${originalDimensions.width} × ${originalDimensions.height} px`
+                          : "Loading dimensions..."}
+                      </small>
+                    </div>
+                    <div className="quality-image-stage">
+                      {sourceUrl && (
+                        <img
+                          src={sourceUrl}
+                          alt={`Original ${file.name}`}
+                          style={{ width: "100%" }}
+                        />
+                      )}
+                    </div>
+                    <small className="quality-comparison-note">
+                      {formatBytes(file.size)}
+                    </small>
+                  </div>
+
+                  <div className="quality-comparison-card">
+                    <div className="quality-comparison-label">
+                      <strong>Optimized</strong>
+                      <small>
+                        {outputBlob
+                          ? `${dimensions.width} × ${dimensions.height} px`
+                          : "Updating preview..."}
+                      </small>
+                    </div>
+                    <div className="quality-image-stage">
+                      {(outputUrl || sourceUrl) && (
+                        <img
+                          src={outputUrl || sourceUrl}
+                          alt={`Optimized preview of ${file.name}`}
+                          style={{ width: `${previewWidthPercent}%` }}
+                        />
+                      )}
+                    </div>
+                    <small className="quality-comparison-note">
+                      {outputBlob
+                        ? `${Math.round(previewWidthPercent)}% of original width`
+                        : "Preview updates when settings change"}
+                    </small>
+                  </div>
+                </div>
 
                 <p className="file-name">{file.name}</p>
-                <p>{formatBytes(file.size)} · Original</p>
 
                 {outputBlob && (
                   <>
@@ -567,11 +653,6 @@ function ImageQualityControls() {
                         : savings < 0
                           ? `${Math.abs(savings)}% larger`
                           : "Same size"}
-                    </p>
-
-                    <p>
-                      Dimensions: {dimensions.width} ×{" "}
-                      {dimensions.height} px
                     </p>
                   </>
                 )}
@@ -638,6 +719,10 @@ function ImageQualityControls() {
                     setMaxWidth(Math.min(12000, Math.max(0, value || 0)));
                   }}
                 />
+                <small className="quality-width-hint">
+                  0 keeps the original size. This setting reduces width but
+                  does not enlarge the image beyond its original dimensions.
+                </small>
 
                 <a
                   className={`quality-download-link ${

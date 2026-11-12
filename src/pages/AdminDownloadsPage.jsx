@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
-import { Clock3, Download, RefreshCw, Trash2 } from "lucide-react";
+import { AlertTriangle, Clock3, Download, RefreshCw, Trash2, X } from "lucide-react";
 import { API_USERS } from "../config/api.js";
+import { showToast } from "../config/toast.js";
 
 function formatBytes(bytes) {
   if (typeof bytes !== "number") return "—";
@@ -14,6 +15,7 @@ function AdminDownloadsPage({ reloadKey }) {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [removingId, setRemovingId] = useState("");
+  const [downloadToRemove, setDownloadToRemove] = useState(null);
   const downloadedFileCount = downloads.reduce((total, item) => total + (item.totalFiles || 1), 0);
   const downloaderCount = new Set(downloads.map((item) => (item.userEmail || "Guest").toLowerCase())).size;
 
@@ -41,7 +43,6 @@ function AdminDownloadsPage({ reloadKey }) {
   }, [reloadKey]);
 
   const removeRecord = async (download) => {
-    if (!window.confirm(`Remove the activity record for “${download.fileName}”? This will not delete the downloaded file.`)) return;
     setRemovingId(download._id);
     setError("");
     try {
@@ -53,8 +54,15 @@ function AdminDownloadsPage({ reloadKey }) {
       const data = await response.json().catch(() => ({}));
       if (!response.ok) throw new Error(data.message || "Could not remove download activity.");
       setDownloads((current) => current.filter((item) => item._id !== download._id));
+      setDownloadToRemove(null);
+      showToast("success", "Activity removed", download.fileName);
     } catch (requestError) {
       setError(requestError.message || "Could not remove download activity.");
+      showToast(
+        "error",
+        "Could not remove activity",
+        requestError.message || "Could not remove download activity."
+      );
     } finally {
       setRemovingId("");
     }
@@ -82,13 +90,69 @@ function AdminDownloadsPage({ reloadKey }) {
                 <td><div className="admin-download-user"><strong>{download.userName || download.userEmail || "Guest"}</strong><small>{download.userEmail || "Not signed in"} · {download.userRole || "guest"}</small></div></td>
                 <td><span className="admin-download-date"><Clock3 size={13} />{download.downloadedAt ? new Date(download.downloadedAt).toLocaleString() : "—"}</span></td>
                 <td className="admin-download-size">{formatBytes(download.fileSize)}</td>
-                <td><button className="admin-download-remove" type="button" onClick={() => removeRecord(download)} disabled={removingId === download._id} aria-label={`Remove activity for ${download.fileName}`}><Trash2 size={14} /><span>{removingId === download._id ? "Removing…" : "Remove"}</span></button></td>
+                <td><button className="admin-download-remove" type="button" onClick={() => setDownloadToRemove(download)} disabled={removingId === download._id} aria-label={`Remove activity for ${download.fileName}`}><Trash2 size={14} /><span>Remove</span></button></td>
               </tr>
             ))}</tbody>
           </table>
         </div>
       )}
       <div className="admin-downloads-footnote">Removing a record only clears activity history. It does not delete the downloaded file.</div>
+      {downloadToRemove && (
+        <div
+          className="image-tool-confirm-overlay"
+          onMouseDown={(event) => {
+            if (event.target === event.currentTarget && !removingId) {
+              setDownloadToRemove(null);
+            }
+          }}
+        >
+          <section
+            className="image-tool-confirm-dialog"
+            role="alertdialog"
+            aria-modal="true"
+            aria-labelledby="admin-download-remove-title"
+            aria-describedby="admin-download-remove-description"
+          >
+            <button
+              className="image-tool-confirm-close"
+              type="button"
+              onClick={() => setDownloadToRemove(null)}
+              disabled={Boolean(removingId)}
+              aria-label="Close confirmation"
+            >
+              <X size={17} />
+            </button>
+            <span className="image-tool-confirm-icon">
+              <AlertTriangle size={23} />
+            </span>
+            <span className="image-tool-confirm-eyebrow">REMOVE ACTIVITY</span>
+            <h2 id="admin-download-remove-title">Remove this download record?</h2>
+            <p id="admin-download-remove-description">
+              <strong>{downloadToRemove.fileName}</strong> will be removed from
+              activity history. The downloaded file will not be deleted.
+            </p>
+            <div className="image-tool-confirm-actions">
+              <button
+                type="button"
+                className="image-tool-confirm-cancel"
+                onClick={() => setDownloadToRemove(null)}
+                disabled={Boolean(removingId)}
+              >
+                Keep record
+              </button>
+              <button
+                type="button"
+                className="image-tool-confirm-delete"
+                onClick={() => removeRecord(downloadToRemove)}
+                disabled={Boolean(removingId)}
+              >
+                <Trash2 size={15} />
+                {removingId ? "Removing…" : "Remove activity"}
+              </button>
+            </div>
+          </section>
+        </div>
+      )}
     </section>
   );
 }

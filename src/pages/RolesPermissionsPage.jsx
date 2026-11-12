@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
-import { CheckCircle2, LockKeyhole, ShieldCheck, Sparkles, UserRound, Users } from "lucide-react";
+import { CheckCircle2, LockKeyhole, ShieldCheck, Sparkles, Trash2, UserRound, Users } from "lucide-react";
 import { API_USERS } from "../config/api.js";
+import { showToast } from "../config/toast.js";
 
 const builtInRoleOptions = [
   { key: "user", label: "User", description: "Standard account" },
@@ -12,39 +13,39 @@ const builtInRoleOptions = [
 const permissionGroups = [
   {
     title: "Platform capabilities",
-    description: "Choose which image and file workflows this role can use.",
+    description: "Allow this role to use Pixelcraft’s image tools and download features.",
     permissions: [
-      { key: "backgroundRemoval", label: "Use background remover" },
-      { key: "backgroundChanger", label: "Use background changer" },
-      { key: "imageCompressor", label: "Use image compressor" },
-      { key: "imageConverter", label: "Use image converter" },
-      { key: "imageCropper", label: "Use image cropper" },
-      { key: "bulkImageProcessing", label: "Use bulk image processing" },
-      { key: "imageAnalyzer", label: "Use image analyzer" },
-      { key: "imageQualityControls", label: "Use image quality controls" },
-      { key: "zipDownloads", label: "Create ZIP downloads" },
+      { key: "backgroundRemoval", label: "Background remover", description: "Upload an image and save a version with its background removed." },
+      { key: "backgroundChanger", label: "Background changer", description: "Replace an image background with a new color or scene." },
+      { key: "imageCompressor", label: "Image compressor", description: "Reduce image file size with compression settings." },
+      { key: "imageConverter", label: "Image converter", description: "Convert images to another supported file format." },
+      { key: "imageCropper", label: "Image cropper", description: "Crop an image and save the result." },
+      { key: "bulkImageProcessing", label: "Bulk image processing", description: "Process multiple images together and download the results." },
+      { key: "imageAnalyzer", label: "Image analyzer", description: "Run image analysis and view saved analysis records." },
+      { key: "imageQualityControls", label: "Quality controls", description: "Adjust image quality and export an optimized file." },
+      { key: "zipDownloads", label: "Create ZIP downloads", description: "Bundle selected files into a ZIP download." },
     ],
   },
   {
     title: "User management",
-    description: "Control account visibility and account changes.",
+    description: "Choose which account management actions this role can perform.",
     permissions: [
-      { key: "viewUsers", label: "View user accounts" },
-      { key: "createUsers", label: "Create user accounts" },
-      { key: "editUsers", label: "Edit user accounts" },
-      { key: "manageStatus", label: "Update account status" },
-      { key: "manageRoles", label: "Assign roles to users" },
+      { key: "viewUsers", label: "View user accounts", description: "Open the Users page and see registered account details." },
+      { key: "createUsers", label: "Create user accounts", description: "Add new accounts from the Users page." },
+      { key: "editUsers", label: "Edit user accounts", description: "Change a user’s name, email, and account details." },
+      { key: "manageStatus", label: "Update account status", description: "Enable or disable an account." },
+      { key: "manageRoles", label: "Assign roles to users", description: "Choose a role when creating or editing a user account." },
     ],
   },
-  { title: "Download activity", description: "Control access to user download records.", permissions: [
-    { key: "viewDownloadHistory", label: "View personal download history" },
-    { key: "manageDownloadHistory", label: "Rename and remove saved ZIP history" },
-    { key: "viewDownloads", label: "View download activity" },
-    { key: "removeDownloads", label: "Remove download records" },
+  { title: "Download activity", description: "Separate a user’s own history from platform-wide download records.", permissions: [
+    { key: "viewDownloadHistory", label: "View personal download history", description: "See downloads made by the signed-in account." },
+    { key: "manageDownloadHistory", label: "Manage personal ZIP history", description: "Rename or remove ZIP records from the signed-in account’s history." },
+    { key: "viewDownloads", label: "View all download activity", description: "Review download records across users in the admin console." },
+    { key: "removeDownloads", label: "Remove download records", description: "Remove activity records from the admin console; this does not delete files." },
   ] },
-  { title: "Role settings", description: "Control access to role and permission settings.", permissions: [
-    { key: "viewRolePermissions", label: "View role permissions" },
-    { key: "manageRolePermissions", label: "Change role permissions" },
+  { title: "Role settings", description: "Control who can view and configure role access.", permissions: [
+    { key: "viewRolePermissions", label: "View roles and permissions", description: "Open the Roles & Permissions page and review role settings." },
+    { key: "manageRolePermissions", label: "Manage role permissions", description: "Change access, create custom roles, and remove unused roles." },
   ] },
 ];
 
@@ -64,6 +65,7 @@ function RolesPermissionsPage({ superAdmin, users = [], loadingUsers = false, on
   const [selectedRole, setSelectedRole] = useState("");
   const [permissions, setPermissions] = useState(initialPermissions);
   const [draftPermissions, setDraftPermissions] = useState(initialPermissions);
+  const [initializedRoleDrafts, setInitializedRoleDrafts] = useState(() => new Set());
   const [loadingPermissions, setLoadingPermissions] = useState(true);
   const [loadError, setLoadError] = useState("");
   const [saveError, setSaveError] = useState("");
@@ -72,6 +74,7 @@ function RolesPermissionsPage({ superAdmin, users = [], loadingUsers = false, on
   const [newRoleName, setNewRoleName] = useState("");
   const [creatingRole, setCreatingRole] = useState(false);
   const [roleFormOpen, setRoleFormOpen] = useState(false);
+  const [deletingRole, setDeletingRole] = useState("");
 
   useEffect(() => {
     if (!saveMessage) return undefined;
@@ -136,11 +139,14 @@ function RolesPermissionsPage({ superAdmin, users = [], loadingUsers = false, on
       setPermissions(data.permissions || initialPermissions);
       setDraftPermissions(data.permissions || initialPermissions);
       setSelectedRole(data.role.key);
+      setInitializedRoleDrafts((current) => new Set(current).add(data.role.key));
       setNewRoleName("");
       setRoleFormOpen(false);
-      setSaveMessage(`${data.role.label} role created. Choose its permissions, then save.`);
+      showToast("success", "Role created", `${data.role.label} is ready to configure.`);
     } catch (error) {
-      setSaveError(error.message || "Could not create role.");
+      const message = error.message || "Could not create role.";
+      setSaveError(message);
+      showToast("error", "Role creation failed", message);
     } finally {
       setCreatingRole(false);
     }
@@ -162,18 +168,50 @@ function RolesPermissionsPage({ superAdmin, users = [], loadingUsers = false, on
       if (!response.ok) throw new Error(data.message || "Could not update role permission.");
       setPermissions(data.permissions || initialPermissions);
       setDraftPermissions(data.permissions || initialPermissions);
+      setSaveMessage("Permissions saved. Refreshing the page...");
       const roleLabel = roleOptions.find((role) => role.key === selectedRole)?.label || selectedRole;
-      setSelectedRole("");
-      setSaveMessage(`${roleLabel} permissions saved successfully.`);
+      showToast("success", "Permissions updated", `${roleLabel} permissions were saved.`);
+      window.setTimeout(() => window.location.reload(), 1800);
     } catch (error) {
-      setSaveError(error.message || "Could not update role permission.");
+      const message = error.message || "Could not update role permission.";
+      setSaveError(message);
+      showToast("error", "Permission update failed", message);
     } finally {
       setSavingKey("");
     }
   };
 
+  const removeRole = async (role) => {
+    if (deletingRole || loadingUsers || users.some((user) => user.role === role.key)) return;
+    if (!window.confirm(`Delete the ${role.label} role? This action cannot be undone.`)) return;
+
+    setDeletingRole(role.key);
+    setSaveError("");
+    setSaveMessage("");
+    try {
+      const response = await fetch(`${API_USERS}/admin/roles/${encodeURIComponent(role.key)}`, {
+        method: "DELETE",
+        credentials: "include",
+      });
+      const data = await response.json().catch(() => ({}));
+      if (!response.ok) throw new Error(data.message || `Could not delete the ${role.label} role.`);
+      const nextRoles = data.roles || builtInRoleOptions;
+      setRoleOptions(nextRoles);
+      onRolesChange?.(nextRoles);
+      setPermissions(data.permissions || initialPermissions);
+      setDraftPermissions(data.permissions || initialPermissions);
+      if (selectedRole === role.key) setSelectedRole("");
+      showToast("success", "Role deleted", `${role.label} was removed.`);
+    } catch (error) {
+      const message = error.message || `Could not delete the ${role.label} role.`;
+      setSaveError(message);
+      showToast("error", "Role deletion failed", message);
+    } finally {
+      setDeletingRole("");
+    }
+  };
+
   const selectedRoleInfo = roleOptions.find((role) => role.key === selectedRole);
-  const SelectedRoleIcon = selectedRole ? roleIcons[selectedRole] || UserRound : null;
   const assignedUsers = users.filter((user) => user.role === selectedRole);
   const canEditPermissions = Boolean(selectedRole) && superAdmin && !loadingPermissions && !loadError && !savingKey;
   const hasUnsavedChanges = Boolean(selectedRole) && JSON.stringify(permissions[selectedRole]) !== JSON.stringify(draftPermissions[selectedRole]);
@@ -194,35 +232,59 @@ function RolesPermissionsPage({ superAdmin, users = [], loadingUsers = false, on
           <button type="submit" disabled={!newRoleName.trim() || creatingRole}>{creatingRole ? "Creating..." : "Create role"}</button>
         </form>}
 
-        <div className="role-details-field">
-          <label htmlFor="role-name">Role name</label>
-          <div className={`role-name-control role-name-${selectedRole}`}>
-            {SelectedRoleIcon && <span className="role-name-icon"><SelectedRoleIcon size={16} /></span>}
-            <select id="role-name" value={selectedRole} onChange={(event) => {
-              const role = event.target.value;
-              setSelectedRole(role);
-              setSaveError("");
-              setSaveMessage("");
-              if (role && superAdmin) {
-                setDraftPermissions((current) => ({ ...current, [role]: emptyPermissions() }));
-              }
-            }}>
-              <option value="">Select a role</option>
+        <div className="role-catalog">
+          <div className="role-catalog-heading"><strong>Roles</strong><span>Select a role to edit permissions</span></div>
+          <label className="role-picker-control">
+            <span className="role-picker-icon"><ShieldCheck size={16} /></span>
+            <select
+              value={selectedRole}
+              aria-label="Select a role"
+              onChange={(event) => {
+                const roleKey = event.target.value;
+                setSelectedRole(roleKey);
+                setSaveError("");
+                setSaveMessage("");
+                if (roleKey && !initializedRoleDrafts.has(roleKey)) {
+                  setDraftPermissions((current) => ({ ...current, [roleKey]: emptyPermissions() }));
+                  setInitializedRoleDrafts((current) => new Set(current).add(roleKey));
+                }
+              }}
+            >
+              <option value="">Select role</option>
               {roleOptions.map((role) => <option value={role.key} key={role.key}>{role.label}</option>)}
             </select>
-            <span className="role-name-description">{selectedRoleInfo?.description || "Choose a role to view its permissions"}</span>
-          </div>
+            <span className="role-picker-chevron" aria-hidden="true" />
+          </label>
+          {selectedRoleInfo && (() => {
+            const RoleIcon = roleIcons[selectedRoleInfo.key] || UserRound;
+            const roleAssignedCount = users.filter((user) => user.role === selectedRoleInfo.key).length;
+            const isProtected = selectedRoleInfo.key === "user" || selectedRoleInfo.key === "superadmin";
+            return <div className="role-selected-summary">
+              <span className={`role-catalog-icon role-name-${selectedRoleInfo.key}`}><RoleIcon size={15} /></span>
+              <span className="role-catalog-copy"><strong>{selectedRoleInfo.label}</strong><small>{selectedRoleInfo.description}</small></span>
+              <span className="role-catalog-count">{loadingUsers ? "…" : `${roleAssignedCount} assigned`}</span>
+              {isProtected ? <span className={`role-catalog-badge ${selectedRoleInfo.key === "superadmin" ? "is-protected" : ""}`}>{selectedRoleInfo.key === "user" ? "Default role" : "Protected"}</span> : <button
+                type="button"
+                className="role-delete-button"
+                onClick={() => void removeRole(selectedRoleInfo)}
+                disabled={!superAdmin || Boolean(deletingRole) || loadingUsers}
+                title={!superAdmin ? "Only a superadmin can delete roles" : roleAssignedCount > 0 ? "Reassign users before deleting this role" : `Delete ${selectedRoleInfo.label} role`}
+                aria-label={`Delete ${selectedRoleInfo.label} role`}
+              ><Trash2 size={13} />{deletingRole === selectedRoleInfo.key ? "Deleting…" : "Delete"}</button>}
+            </div>;
+          })()}
         </div>
 
         {loadError && <p className="admin-error role-settings-error" role="alert">{loadError}</p>}
         {saveError && <p className="admin-error role-settings-error" role="alert">{saveError}</p>}
 
+        {!selectedRole && <div className="role-permission-unselected-note"><ShieldCheck size={15} /><span>Select a role above to edit these permissions. They’re all unchecked until a role is selected.</span></div>}
         {permissionGroups.map((group) => (
           <section className="role-permission-group" key={group.title} aria-label={group.title}>
-            <div className="role-permission-group-heading"><div><h3>{group.title}</h3><p>{group.description}</p></div><span>{group.permissions.length}</span></div>
+            <div className="role-permission-group-heading"><div><h3>{group.title}</h3><p>{group.description}</p></div><span>{selectedRole ? `${group.permissions.filter(({ key }) => draftPermissions[selectedRole]?.[key]).length}/${group.permissions.length} selected` : `0/${group.permissions.length} selected`}</span></div>
             <div className="role-permission-grid">
-              {group.permissions.map(({ key, label }) => {
-                const checked = Boolean(draftPermissions[selectedRole]?.[key]);
+              {group.permissions.map(({ key, label, description }) => {
+                const checked = selectedRole ? Boolean(draftPermissions[selectedRole]?.[key]) : false;
                 return <label className={`role-permission-option ${checked ? "is-enabled" : ""} ${canEditPermissions ? "" : "is-disabled"}`} key={key}>
                   <input
                     type="checkbox"
@@ -232,7 +294,7 @@ function RolesPermissionsPage({ superAdmin, users = [], loadingUsers = false, on
                     aria-label={`${label}${selectedRoleInfo ? ` for ${selectedRoleInfo.label}` : " (select a role first)"}`}
                   />
                   <span className="role-permission-check" aria-hidden="true">{checked ? "✓" : ""}</span>
-                  <span className="role-permission-label">{label}</span>
+                  <span className="role-permission-copy"><strong>{label}</strong><small>{description}</small></span>
                 </label>;
               })}
             </div>

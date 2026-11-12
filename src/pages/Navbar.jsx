@@ -1,6 +1,9 @@
 import './Navbar.css'
-import { Link } from 'react-router-dom'
-import { ChevronDown, ChevronUp } from 'lucide-react'
+import { Link, useNavigate } from 'react-router-dom'
+import { useEffect, useState } from 'react'
+import { ChevronDown, ChevronUp, LogOut, UserRound } from 'lucide-react'
+import { API_USERS, getSessionStatus } from '../config/api.js'
+import { refreshGuestDownloadQuota } from '../config/downloadTracking.js'
 import Image from './Image.jsx'
 import BackgroundBlur from './BackgroundBlur.jsx'
 import BackgroundChanger from './BackgroundChanger.jsx'
@@ -45,6 +48,39 @@ function SparkleIcon() {
 
 function Navbar({ showAllTools, onToggleTools, tools = toolCatalog }) {
   const visibleToolLinks = showAllTools ? tools : tools.slice(0, 4)
+  const navigate = useNavigate()
+  const [authenticated, setAuthenticated] = useState(false)
+
+  useEffect(() => {
+    let active = true
+    getSessionStatus()
+      .then((status) => {
+        if (active) setAuthenticated(status.authenticated === true)
+      })
+      .catch((error) => {
+        console.error('Could not check the signed-in state:', error)
+      })
+    return () => { active = false }
+  }, [])
+
+  const signOut = async () => {
+    try {
+      const response = await fetch(`${API_USERS}/logout`, {
+        method: 'POST',
+        credentials: 'include',
+      })
+      if (!response.ok) throw new Error('Could not sign out. Please try again.')
+      setAuthenticated(false)
+      try {
+        await refreshGuestDownloadQuota()
+      } catch (error) {
+        console.error('Could not refresh the guest download limit after signing out:', error)
+      }
+      navigate('/', { replace: true })
+    } catch (error) {
+      console.error('Could not sign out:', error)
+    }
+  }
 
   return (
     <header className="topbar">
@@ -73,16 +109,33 @@ function Navbar({ showAllTools, onToggleTools, tools = toolCatalog }) {
       </nav>
 
       <div className="topbar-actions">
-        <div className="topbar-note">
-          <span className="status-dot" />
-          Free, fast & private
-        </div>
-        <Link className="nav-button nav-button-secondary" to="/login">
-          Log in
-        </Link>
-        <button className="nav-button nav-button-primary" type="button">
-          Get started
-        </button>
+        {authenticated ? (
+          <>
+            <div className="topbar-note">
+              <span className="status-dot" />
+              Signed in
+            </div>
+            <Link className="nav-button nav-button-secondary" to="/user">
+              <UserRound size={15} /> My account
+            </Link>
+            <button className="nav-button nav-button-primary" type="button" onClick={signOut}>
+              <LogOut size={15} /> Sign out
+            </button>
+          </>
+        ) : (
+          <>
+            <div className="topbar-note">
+              <span className="status-dot" />
+              Free, fast & private
+            </div>
+            <Link className="nav-button nav-button-secondary" to="/login">
+              Log in
+            </Link>
+            <Link className="nav-button nav-button-primary" to="/register">
+              Get started
+            </Link>
+          </>
+        )}
       </div>
     </header>
   )

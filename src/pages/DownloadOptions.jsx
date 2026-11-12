@@ -13,6 +13,7 @@ import {
 } from "lucide-react";
 import "./DownloadOptions.css";
 import { API_USERS } from "../config/api.js";
+import { showToast } from "../config/toast.js";
 import { releaseGuestDownload, requireLoginForDownload, trackDownload } from "../config/downloadTracking.js";
 
 const API_BASE = API_USERS;
@@ -244,8 +245,6 @@ function DownloadOptions() {
         urlsRef.current.delete(url);
       }, 2000);
 
-      setMessage("ZIP download started successfully.");
-
       // Refresh history after the backend creates the record.
       await fetchHistory();
     } catch (err) {
@@ -302,7 +301,7 @@ function DownloadOptions() {
 
       setEditId(null);
       setEditName("");
-      setMessage("Download record updated successfully.");
+      showToast("success", "ZIP name updated", "Download history was updated.");
 
       await fetchHistory();
 
@@ -311,6 +310,11 @@ function DownloadOptions() {
       }
     } catch (err) {
       setError(err.message || "Update failed.");
+      showToast(
+        "error",
+        "Update failed",
+        err.message || "Could not update download history."
+      );
     }
   };
 
@@ -341,9 +345,14 @@ function DownloadOptions() {
         setSelectedDownload(null);
       }
 
-      setMessage("Download history record deleted.");
+      showToast("success", "History record deleted", "The download record was removed.");
     } catch (err) {
       setError(err.message || "Delete failed.");
+      showToast(
+        "error",
+        "Delete failed",
+        err.message || "Could not delete the download record."
+      );
     }
   };
 

@@ -8,8 +8,9 @@ import {
   RefreshCw,
   Sparkles,
 } from "lucide-react";
-import { API_USERS, removeBackgroundInBrowser } from "../config/api.js";
+import { API_USERS, getSessionStatus, removeBackgroundInBrowser } from "../config/api.js";
 import { releaseGuestDownload, requireLoginForDownload, trackDownload } from "../config/downloadTracking.js";
+import { claimPendingDownload, savePendingDownload } from "../config/downloadHandoff.js";
 import "./BackgroundBlur.css";
 
 const MAX_FILE_SIZE = 20 * 1024 * 1024;
@@ -38,6 +39,47 @@ function BackgroundBlur() {
       if (subjectUrl) URL.revokeObjectURL(subjectUrl);
     };
   }, [subjectUrl]);
+
+  useEffect(() => {
+    let active = true;
+    const restorePendingImage = async () => {
+      let pending;
+      try {
+        pending = await claimPendingDownload("Background Blur");
+        if (!pending) return;
+        const session = await getSessionStatus();
+        if (!session.authenticated || !active) {
+          await savePendingDownload(pending);
+          return;
+        }
+
+        const restoredOriginalUrl = URL.createObjectURL(pending.originalFile);
+        const restoredSubjectUrl = URL.createObjectURL(pending.blob);
+        setFile(pending.originalFile);
+        setOriginalUrl(restoredOriginalUrl);
+        setSubjectBlob(pending.blob);
+        setSubjectUrl(restoredSubjectUrl);
+        setBlurStrength(pending.blurStrength);
+        setStatus("You’re signed in. Your background blur is ready—click Download focused photo when you’re ready.");
+      } catch (restoreError) {
+        if (pending) {
+          try {
+            await savePendingDownload(pending);
+          } catch (storageError) {
+            if (active) setError(`Could not restore your background blur: ${restoreError.message} ${storageError.message}`);
+            return;
+          }
+        }
+        if (active) setError(restoreError instanceof Error ? restoreError.message : "Could not restore your background blur.");
+      }
+    };
+
+    const timer = window.setTimeout(() => { void restorePendingImage(); }, 0);
+    return () => {
+      active = false;
+      window.clearTimeout(timer);
+    };
+  }, []);
 
   const chooseFile = (nextFile) => {
     if (!nextFile) return;
@@ -82,7 +124,19 @@ function BackgroundBlur() {
 
   const handleDownload = async () => {
     if (!file || !subjectBlob || downloading) return;
-    if (!(await requireLoginForDownload())) return;
+    if (!(await requireLoginForDownload(1, {
+      onLogin: async () => {
+        await savePendingDownload({
+          blob: subjectBlob,
+          originalFile: file,
+          blurStrength,
+          fileName: "background-blur.png",
+          tool: "Background Blur",
+          returnTo: "/#background-blur",
+        });
+        return "/#background-blur";
+      },
+    }))) return;
     setDownloading(true);
     setError("");
 
@@ -163,7 +217,7 @@ function BackgroundBlur() {
 
   return (
     <main className="background-blur-page">
-      <section className="background-blur-shell">
+      <section className={`background-blur-shell ${file ? "has-file" : ""}`}>
         <div className="background-blur-hero">
           <div className="background-blur-hero-copy">
             <span className="background-blur-eyebrow"><Aperture size={15} /> DEPTH STUDIO <i /></span>

@@ -10,8 +10,14 @@ import {
   CheckCircle2,
 } from "lucide-react";
 import "./Image.css";
-import { removeBackgroundInBrowser } from "../config/api.js";
-import { releaseGuestDownload, requireLoginForDownload, trackDownload } from "../config/downloadTracking.js";
+import { getSessionStatus, removeBackgroundInBrowser } from "../config/api.js";
+import {
+  releaseGuestDownload,
+  requireLoginForDownload,
+  trackAuthenticatedDownload,
+  trackDownload,
+} from "../config/downloadTracking.js";
+import { claimPendingDownload, savePendingDownload } from "../config/downloadHandoff.js";
 
 
 function Image() {
@@ -20,6 +26,7 @@ function Image() {
   const [selectedFile, setSelectedFile] = useState(null);
   const [originalImage, setOriginalImage] = useState("");
   const [processedImage, setProcessedImage] = useState("");
+  const [processedBlob, setProcessedBlob] = useState(null);
   const [processedFilename, setProcessedFilename] = useState("");
   const [isDragging, setIsDragging] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -39,6 +46,54 @@ function Image() {
     };
   }, [originalImage, processedImage]);
 
+  useEffect(() => {
+    let active = true;
+    const restoreProcessedImage = async () => {
+      let pending;
+      try {
+        pending = await claimPendingDownload("Background removal");
+        if (!pending) return;
+        const status = await getSessionStatus();
+        if (!status.authenticated) {
+          await savePendingDownload(pending);
+          if (active) setError("Please sign in to download your processed image.");
+          return;
+        }
+        if (!active) {
+          await savePendingDownload(pending);
+          return;
+        }
+
+        const previewUrl = URL.createObjectURL(pending.blob);
+        const originalUrl = pending.originalFile
+          ? URL.createObjectURL(pending.originalFile)
+          : "";
+        setSelectedFile(pending.originalFile || null);
+        setOriginalImage(originalUrl);
+        setProcessedImage(previewUrl);
+        setProcessedBlob(pending.blob);
+        setProcessedFilename(pending.fileName);
+        setMessage("You’re signed in. Your processed image is ready—click Download Image when you’re ready.");
+      } catch (resumeError) {
+        if (pending) {
+          try {
+            await savePendingDownload(pending);
+          } catch (storageError) {
+            if (active) setError(`Could not resume the download: ${resumeError.message} ${storageError.message}`);
+            return;
+          }
+        }
+        if (active) setError(resumeError instanceof Error ? resumeError.message : "Could not resume your download.");
+      }
+    };
+
+    const timer = window.setTimeout(() => { void restoreProcessedImage(); }, 0);
+    return () => {
+      active = false;
+      window.clearTimeout(timer);
+    };
+  }, []);
+
   // Select and validate an image.
   const handleFile = (file) => {
     if (!file) return;
@@ -46,6 +101,7 @@ function Image() {
     setError("");
     setMessage("");
     setProcessedImage("");
+    setProcessedBlob(null);
     setProcessedFilename("");
 
     const allowedTypes = [
@@ -113,6 +169,7 @@ function Image() {
       const resultUrl = URL.createObjectURL(imageBlob);
 
       setProcessedImage(resultUrl);
+      setProcessedBlob(imageBlob);
       setProcessedFilename("background-removed.png");
       setMessage("Background removed successfully!");
     } catch (err) {
@@ -131,26 +188,54 @@ function Image() {
   // Download the processed image.
   const handleDownload = async () => {
     if (!processedImage || loading) return;
-    if (!(await requireLoginForDownload())) return;
-
+    let guestReservation = false;
+    let trackingStarted = false;
     try {
       setError("");
       setMessage("");
+      const session = await getSessionStatus();
+
+      const authenticated = session.authenticated === true;
+      if (!authenticated) {
+        const allowed = await requireLoginForDownload(1, {
+          onLogin: async () => {
+            if (!processedBlob) throw new Error("The processed image is no longer available.");
+            await savePendingDownload({
+              blob: processedBlob,
+              originalFile: selectedFile,
+              fileName: processedFilename || "background-removed.png",
+              tool: "Background removal",
+              returnTo: "/#background-removal",
+            });
+            return "/#background-removal";
+          },
+        });
+        if (!allowed) return;
+        guestReservation = true;
+      }
 
       const link = document.createElement("a");
       link.href = processedImage;
       link.download = processedFilename || "background-removed.png";
-      await trackDownload("Background removal", link.download);
+      if (authenticated) {
+        await trackAuthenticatedDownload("Background removal", link.download, processedBlob?.size);
+      } else {
+        trackingStarted = true;
+        await trackDownload("Background removal", link.download, processedBlob?.size);
+      }
 
       document.body.appendChild(link);
       link.click();
       link.remove();
 
-      setMessage("Image downloaded successfully!");
     } catch (err) {
-      await releaseGuestDownload();
+      if (guestReservation && !trackingStarted) await releaseGuestDownload();
       console.error("Download error:", err);
-      setError("Image download failed. Please try again.");
+      setError(
+        err instanceof Error
+          ? err.message
+          : "Image download failed. Please try again."
+      );
     }
   };
 
@@ -159,6 +244,7 @@ function Image() {
     setSelectedFile(null);
     setOriginalImage("");
     setProcessedImage("");
+    setProcessedBlob(null);
     setProcessedFilename("");
     setError("");
     setMessage("");
@@ -171,7 +257,7 @@ function Image() {
 
   return (
     <div className="page-shell">
-      <main className="hero">
+      <main className={`hero ${selectedFile ? "has-selected-file" : ""}`}>
         <div className="eyebrow">
           <Sparkles aria-hidden="true" />
           AI-POWERED IMAGE EDITING

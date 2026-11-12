@@ -17,10 +17,13 @@ import {
   Trash2,
   Power,
   Wrench,
+  AlertTriangle,
+  X,
 } from "lucide-react";
 
 import AddEditImageToolModal from "./AddEditImageToolModal";
 import { API_USERS } from "../config/api.js";
+import { showToast } from "../config/toast.js";
 import { toolCatalog } from "./Navbar.jsx";
 
 const IMAGE_TOOLS_URL = `${API_USERS}/admin/imagetools`;
@@ -59,6 +62,8 @@ function AdminImageToolsPage() {
   const [search, setSearch] = useState("");
   const [modalOpen, setModalOpen] = useState(false);
   const [editingTool, setEditingTool] = useState(null);
+  const [confirmDeleteTool, setConfirmDeleteTool] = useState(null);
+  const [deleting, setDeleting] = useState(false);
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState("");
 
@@ -113,6 +118,15 @@ function AdminImageToolsPage() {
     fetchTools();
   }, []);
 
+  useEffect(() => {
+    if (!confirmDeleteTool || deleting) return undefined;
+    const closeOnEscape = (event) => {
+      if (event.key === "Escape") setConfirmDeleteTool(null);
+    };
+    window.addEventListener("keydown", closeOnEscape);
+    return () => window.removeEventListener("keydown", closeOnEscape);
+  }, [confirmDeleteTool, deleting]);
+
   const filteredTools = useMemo(() => {
     return tools.filter((tool) =>
       `${tool.title} ${tool.description}`
@@ -141,21 +155,22 @@ function AdminImageToolsPage() {
 
   // The modal persists the record and returns the saved API document.
   const handleModalSave = (savedTool) => {
+    const wasEditing = Boolean(editingTool);
     setTools((previous) => editingTool
       ? previous.map((tool) => tool._id === savedTool._id ? savedTool : tool)
       : [savedTool, ...previous]
     );
     closeModal();
+    showToast(
+      "success",
+      wasEditing ? "Tool updated" : "Tool added",
+      savedTool.title
+    );
 };
 
   // DELETE image tool
   const handleDelete = async (id) => {
-  const confirmed = window.confirm(
-    "Are you sure you want to delete this tool?"
-  );
-
-  if (!confirmed) return;
-
+  setDeleting(true);
   try {
     const response = await fetch(`${IMAGE_TOOLS_URL}/${encodeURIComponent(id)}`, {
       method: "DELETE",
@@ -166,9 +181,17 @@ function AdminImageToolsPage() {
     setTools((previous) =>
       previous.filter((tool) => tool._id !== id)
     );
+    showToast("success", "Tool deleted", `${confirmDeleteTool?.title || "The image tool"} was removed from your tools.`);
+    setConfirmDeleteTool(null);
   } catch (error) {
     console.error("Delete image tool error:", error);
-    alert(error.message);
+    showToast(
+      "error",
+      "Tool deletion failed",
+      error.message || "Could not delete the image tool."
+    );
+  } finally {
+    setDeleting(false);
   }
 };
 
@@ -197,9 +220,18 @@ function AdminImageToolsPage() {
           : item
       )
     );
+    showToast(
+      "success",
+      newStatus === "active" ? "Tool activated" : "Tool deactivated",
+      `${tool.title} is now ${newStatus}.`
+    );
   } catch (error) {
     console.error("Update status error:", error);
-    alert(error.message);
+    showToast(
+      "error",
+      "Tool update failed",
+      error.message || "Could not update the image tool."
+    );
   }
 };
 
@@ -345,7 +377,7 @@ function AdminImageToolsPage() {
                   <button
                     type="button"
                     className="delete-tool-btn"
-                    onClick={() => handleDelete(tool._id)}
+                    onClick={() => setConfirmDeleteTool(tool)}
                     title="Delete tool"
                   >
                     <Trash2 size={16} />
@@ -370,6 +402,22 @@ function AdminImageToolsPage() {
           onClose={closeModal}
           onSave={handleModalSave}
         />
+      )}
+
+      {confirmDeleteTool && (
+        <div className="image-tool-confirm-overlay" onMouseDown={(event) => { if (event.target === event.currentTarget && !deleting) setConfirmDeleteTool(null); }}>
+          <section className="image-tool-confirm-dialog" role="alertdialog" aria-modal="true" aria-labelledby="image-tool-delete-title" aria-describedby="image-tool-delete-description">
+            <button className="image-tool-confirm-close" type="button" onClick={() => setConfirmDeleteTool(null)} disabled={deleting} aria-label="Close confirmation"><X size={17} /></button>
+            <span className="image-tool-confirm-icon"><AlertTriangle size={23} /></span>
+            <span className="image-tool-confirm-eyebrow">REMOVE TOOL</span>
+            <h2 id="image-tool-delete-title">Delete this image tool?</h2>
+            <p id="image-tool-delete-description"><strong>{confirmDeleteTool.title}</strong> will be removed from the tools list. This action cannot be undone.</p>
+            <div className="image-tool-confirm-actions">
+              <button type="button" className="image-tool-confirm-cancel" onClick={() => setConfirmDeleteTool(null)} disabled={deleting}>Keep tool</button>
+              <button type="button" className="image-tool-confirm-delete" onClick={() => handleDelete(confirmDeleteTool._id)} disabled={deleting}><Trash2 size={15} />{deleting ? "Deleting…" : "Delete tool"}</button>
+            </div>
+          </section>
+        </div>
       )}
     </div>
   );

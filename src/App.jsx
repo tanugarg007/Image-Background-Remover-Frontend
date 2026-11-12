@@ -55,9 +55,10 @@ function App() {
     ? location.pathname.replace(/^\/+|\/+$/g, "")
     : activeHash.slice(1);
   const requestedTool = availableTools.find((tool) => tool.route.slice(1) === requestedId);
-  const renderedTools = requestedTool && !visibleTools.includes(requestedTool)
-    ? [...visibleTools, requestedTool]
-    : visibleTools;
+  // When a tool is selected from the navigation, render that tool on its own.
+  // Keeping the home page's other tools mounted above it makes every tool
+  // appear much farther down the page and forces unnecessary scrolling.
+  const renderedTools = requestedTool ? [requestedTool] : visibleTools;
 
   useEffect(() => {
     if (!requestedTool) return;

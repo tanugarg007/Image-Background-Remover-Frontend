@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
-import { Link, useNavigate } from "react-router-dom";
-import { RefreshCw, ShieldCheck, Sparkles } from "lucide-react";
+import { Link, useLocation, useNavigate } from "react-router-dom";
+import { AlertTriangle, RefreshCw, ShieldCheck, Sparkles, Trash2, X } from "lucide-react";
 
 import AdminSidebar from "./AdminSidebar.jsx";
 import UsersPage from "./UsersPage.jsx";
@@ -11,8 +11,10 @@ import UserAccountForm from "./UserAccountForm.jsx";
 import AdminImageToolsPage from "./AdminImageToolsPage.jsx";
 import "./AdminPanel.css";
 import { API_USERS } from "../config/api.js";
+import { showToast } from "../config/toast.js";
 function AdminPanel({ superAdmin = false }) {
   const navigate = useNavigate();
+  const location = useLocation();
   const [access, setAccess] = useState("checking");
   const [adminUser, setAdminUser] = useState(null);
   const [users, setUsers] = useState([]);
@@ -31,10 +33,24 @@ function AdminPanel({ superAdmin = false }) {
   const [accountForm, setAccountForm] = useState({ name: "", email: "", password: "", role: "user", status: "active" });
   const [savingAccount, setSavingAccount] = useState(false);
   const [deletingUserId, setDeletingUserId] = useState("");
+  const [accountToDelete, setAccountToDelete] = useState(null);
   const [canManageUsers, setCanManageUsers] = useState(false);
   const [search, setSearch] = useState("");
-  const [activeSection, setActiveSection] = useState("users");
   const [reloadKey, setReloadKey] = useState(0);
+  const adminBasePath = superAdmin ? "/superadmin" : "/admin";
+  const requestedSection =
+    location.pathname.slice(adminBasePath.length).split("/").filter(Boolean)[0] ||
+    "users";
+  const validSections = ["users", "roles", "downloads", "finance", "image-tools"];
+  const activeSection =
+    validSections.includes(requestedSection) &&
+    (requestedSection !== "finance" || superAdmin)
+      ? requestedSection
+      : "users";
+
+  const changeSection = (section) => {
+    navigate(section === "users" ? adminBasePath : `${adminBasePath}/${section}`);
+  };
 
   useEffect(() => {
     const controller = new AbortController();
@@ -116,7 +132,7 @@ if (superAdmin ? !isSuperAdmin : !(isAdmin || isSuperAdmin)) {
   const openCreateAccount = () => {
     setRoleError("");
     setRoleMessage("");
-    setAccountForm({ name: "", email: "", password: "", role: "user", status: "active" });
+    setAccountForm({ name: "", email: "", password: "", role: superAdmin ? "" : "user", status: "active" });
     setAccountDialog({ mode: "create" });
   };
 
@@ -159,7 +175,7 @@ if (superAdmin ? !isSuperAdmin : !(isAdmin || isSuperAdmin)) {
           admins: current.admins + Number(["admin", "superadmin"].includes(data.user.role)),
           roleCounts: { ...current.roleCounts, [data.user.role]: (current.roleCounts[data.user.role] || 0) + 1 },
         }));
-        setRoleMessage(`Account created for ${data.user.email}.`);
+        showToast("success", "User created successfully", `${data.user.name || "New user"} · ${data.user.email}`);
       } else {
         const oldUser = accountDialog.user;
         setUsers((current) => current.map((item) => item.id === oldUser.id ? data.user : item));
@@ -172,18 +188,19 @@ if (superAdmin ? !isSuperAdmin : !(isAdmin || isSuperAdmin)) {
             [data.user.role]: (current.roleCounts[data.user.role] || 0) + Number(data.user.role !== oldUser.role),
           },
         }));
-        setRoleMessage(`Account updated for ${data.user.email}.`);
+        showToast("success", "Account updated", data.user.email);
       }
       setAccountDialog(null);
     } catch (requestError) {
-      setRoleError(requestError instanceof Error ? requestError.message : "Could not save account.");
+      const message = requestError instanceof Error ? requestError.message : "Could not save account.";
+      setRoleError(message);
+      showToast("error", "Account save failed", message);
     } finally {
       setSavingAccount(false);
     }
   };
 
   const deleteAccount = async (user) => {
-    if (!window.confirm(`Delete the account for ${user.email}? This action cannot be undone.`)) return;
     setDeletingUserId(user.id);
     setRoleMessage("");
     setRoleError("");
@@ -205,13 +222,29 @@ if (superAdmin ? !isSuperAdmin : !(isAdmin || isSuperAdmin)) {
           [user.role]: Math.max(0, (current.roleCounts[user.role] || 0) - 1),
         },
       }));
-      setRoleMessage(`Account deleted for ${user.email}.`);
+      showToast("success", "Account deleted", user.email);
+      setAccountToDelete(null);
     } catch (requestError) {
-      setRoleError(requestError instanceof Error ? requestError.message : "Could not delete account.");
+      const message = requestError instanceof Error ? requestError.message : "Could not delete account.";
+      setRoleError(message);
+      showToast("error", "Account deletion failed", message);
     } finally {
       setDeletingUserId("");
     }
   };
+
+  const confirmAccountDelete = () => {
+    if (accountToDelete && !deletingUserId) void deleteAccount(accountToDelete);
+  };
+
+  useEffect(() => {
+    if (!accountToDelete || deletingUserId) return undefined;
+    const closeOnEscape = (event) => {
+      if (event.key === "Escape") setAccountToDelete(null);
+    };
+    window.addEventListener("keydown", closeOnEscape);
+    return () => window.removeEventListener("keydown", closeOnEscape);
+  }, [accountToDelete, deletingUserId]);
 
   if (access === "checking") {
     return <main className="admin-gate"><div className="admin-gate-card"><span className="admin-gate-mark"><Sparkles size={20} /></span><p>Checking administrator access…</p></div></main>;
@@ -241,7 +274,7 @@ if (superAdmin ? !isSuperAdmin : !(isAdmin || isSuperAdmin)) {
     <div className="admin-shell">
       <AdminSidebar
         activeSection={activeSection}
-        onSectionChange={setActiveSection}
+        onSectionChange={changeSection}
         adminUser={adminUser}
         superAdmin={superAdmin}
         onSignOut={signOut}
@@ -327,7 +360,7 @@ if (superAdmin ? !isSuperAdmin : !(isAdmin || isSuperAdmin)) {
     filteredUsers={filteredUsers}
     openCreateAccount={openCreateAccount}
     openEditAccount={openEditAccount}
-    deleteAccount={deleteAccount}
+    deleteAccount={setAccountToDelete}
   />
 )}      <footer className="admin-footer"><span>© 2026 Pixelcraft</span><span>Account data is loaded from MongoDB</span></footer>
         </div>
@@ -344,6 +377,21 @@ if (superAdmin ? !isSuperAdmin : !(isAdmin || isSuperAdmin)) {
         roleError={roleError}
         superAdmin={superAdmin}
       />
+      {accountToDelete && (
+        <div className="account-delete-overlay" onMouseDown={(event) => { if (event.target === event.currentTarget && !deletingUserId) setAccountToDelete(null); }}>
+          <section className="account-delete-dialog" role="alertdialog" aria-modal="true" aria-labelledby="account-delete-title" aria-describedby="account-delete-description">
+            <button className="account-delete-close" type="button" onClick={() => setAccountToDelete(null)} disabled={Boolean(deletingUserId)} aria-label="Close confirmation"><X size={17} /></button>
+            <span className="account-delete-icon"><AlertTriangle size={23} /></span>
+            <span className="account-delete-eyebrow">DELETE ACCOUNT</span>
+            <h2 id="account-delete-title">Delete this user?</h2>
+            <p id="account-delete-description">The account for <strong>{accountToDelete.email}</strong> will be permanently deleted. This action cannot be undone.</p>
+            <div className="account-delete-actions">
+              <button type="button" className="account-delete-cancel" onClick={() => setAccountToDelete(null)} disabled={Boolean(deletingUserId)}>Cancel</button>
+              <button type="button" className="account-delete-confirm" onClick={confirmAccountDelete} disabled={Boolean(deletingUserId)}><Trash2 size={15} />{deletingUserId ? "Deleting…" : "Delete account"}</button>
+            </div>
+          </section>
+        </div>
+      )}
     </div>
   );
 }

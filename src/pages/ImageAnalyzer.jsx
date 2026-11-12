@@ -7,6 +7,7 @@ import {
   CalendarDays,
   Check,
   Copy,
+  Download,
   FileImage,
   HardDrive,
   ImagePlus,
@@ -19,6 +20,12 @@ import {
 } from "lucide-react";
 import "./ImageAnalyzer.css";
 import { API_USERS } from "../config/api.js";
+import {
+  releaseGuestDownload,
+  requireLoginForDownload,
+  trackDownload,
+} from "../config/downloadTracking.js";
+import { showToast } from "../config/toast.js";
 
 const API_BASE = API_USERS;
 
@@ -113,6 +120,7 @@ function ImageAnalyzer() {
         : null,
       ratio: ratioLabel(width, height),
       serverId,
+      storedFileName: data.storedFileName || "",
     };
   };
 
@@ -149,7 +157,7 @@ function ImageAnalyzer() {
           const formData = new FormData();
           formData.append("image", file);
 
-          const response = await fetch(`${API_BASE}/AnalyzeImage`,{
+          const response = await fetch(`${API_BASE}/image-analyzer`, {
             method: "POST",
             body: formData,
           });
@@ -191,7 +199,7 @@ function ImageAnalyzer() {
 
   // GET: Load saved image records from MongoDB
   const getAnalyzedImages = async () => {
-    const response = await fetch(API_BASE);
+    const response = await fetch(`${API_BASE}/analyze-image`);
     const result = await readResponse(response);
 
     if (!response.ok || !result.success) {
@@ -216,10 +224,13 @@ function ImageAnalyzer() {
       const restored = records
         .filter((record) => record._id)
         .map((record) => {
-          // The API must return an accessible image URL for restoring
-          // the original preview from the backend.
+          // Newly saved records expose their image through the download API.
           const imageUrl =
-            record.imageUrl || record.url || record.originalUrl;
+            (record.storedFileName &&
+              `${API_BASE}/image-analyzer/${record._id}/download`) ||
+            record.imageUrl ||
+            record.url ||
+            record.originalUrl;
 
           return {
             record,
@@ -239,7 +250,9 @@ function ImageAnalyzer() {
 
             if (!imageResponse.ok) {
               throw new Error(
-                `Could not load saved image: ${record.name || record._id}`
+                `Could not load saved image: ${
+                  record.fileName || record.name || record._id
+                }`
               );
             }
 
@@ -247,7 +260,10 @@ function ImageAnalyzer() {
 
             file = new File(
               [blob],
-              record.name || record.originalName || "saved-image",
+              record.fileName ||
+                record.name ||
+                record.originalName ||
+                "saved-image",
               {
                 type:
                   blob.type ||
@@ -261,9 +277,13 @@ function ImageAnalyzer() {
           } else {
             // Metadata can still be shown, but a real preview/download
             // needs an accessible image URL or file endpoint.
-            file = new File([], record.name || "saved-image", {
-              type: record.mimeType || "image/unknown",
-            });
+            file = new File(
+              [],
+              record.fileName || record.name || "saved-image",
+              {
+                type: record.mimeType || "image/unknown",
+              }
+            );
           }
 
           const entry = makeImageEntry(file, record, record._id);
@@ -283,6 +303,7 @@ function ImageAnalyzer() {
               width >= height ? "Landscape" : "Portrait",
             serverId: record._id,
             id: record._id,
+            storedFileName: record.storedFileName || "",
           };
         })
       );
@@ -322,11 +343,12 @@ function ImageAnalyzer() {
   const deleteAnalyzedImage = async (serverId) => {
     if (!serverId) {
       setError("This image has no saved database record.");
+      showToast("error", "Could not delete image", "This image has no saved database record.");
       return false;
     }
 
     try {
-      const response = await fetch(`${API_BASE}/${serverId}`, {
+      const response = await fetch(`${API_BASE}/analyze-image/${serverId}`, {
         method: "DELETE",
       });
 
@@ -340,6 +362,11 @@ function ImageAnalyzer() {
       return true;
     } catch (cause) {
       setError(
+        cause instanceof Error ? cause.message : "Delete failed."
+      );
+      showToast(
+        "error",
+        "Image deletion failed",
         cause instanceof Error ? cause.message : "Delete failed."
       );
       return false;
@@ -365,6 +392,7 @@ function ImageAnalyzer() {
       setSelectedId(remaining[0]?.id || "");
       setEditName(remaining[0]?.file.name || "");
     }
+    showToast("success", "Image deleted", removed.file.name);
   };
 
   const clearAll = async () => {
@@ -385,11 +413,12 @@ function ImageAnalyzer() {
     setImages([]);
     setSelectedId("");
     setEditName("");
+    showToast("success", "Analyzer cleared", "All saved images were removed.");
   };
 
   // PATCH: Update saved image name
   const updateAnalyzedImage = async (id, updates) => {
-    const response = await fetch(`${API_BASE}/${id}`, {
+    const response = await fetch(`${API_BASE}/analyze-image/${id}`, {
       method: "PATCH",
       headers: {
         "Content-Type": "application/json",
@@ -412,21 +441,29 @@ function ImageAnalyzer() {
       return;
     }
 
-    if (!editName.trim()) {
+    const nameToSave = editName.trim();
+
+    if (!nameToSave) {
       setError("Please enter an image name.");
       return;
     }
+
+    if (nameToSave === selected.file.name) return;
 
     try {
       setUpdating(true);
       setError("");
 
       const updated = await updateAnalyzedImage(selected.serverId, {
-        name: editName.trim(),
+        fileName: nameToSave,
       });
 
-      const newName =
-        updated?.name || editName.trim();
+      const newName = updated?.fileName;
+      if (newName !== nameToSave) {
+        throw new Error(
+          "The server did not save the new name. Restart the backend and try again."
+        );
+      }
 
       setImages((current) =>
         current.map((image) => {
@@ -450,8 +487,14 @@ function ImageAnalyzer() {
 
       setEditName(newName);
       setError("");
+      showToast("success", "Image name updated", newName);
     } catch (cause) {
       setError(
+        cause instanceof Error ? cause.message : "Update failed."
+      );
+      showToast(
+        "error",
+        "Image update failed",
         cause instanceof Error ? cause.message : "Update failed."
       );
     } finally {
@@ -494,6 +537,62 @@ function ImageAnalyzer() {
       window.setTimeout(() => setCopied(false), 1500);
     } catch {
       setError("Could not copy metadata to clipboard.");
+    }
+  };
+
+  const downloadImage = async () => {
+    if (!selected?.file.size || !selected.previewUrl) {
+      setError("This saved record has metadata only. Re-upload the image to download it.");
+      return;
+    }
+
+    if (!(await requireLoginForDownload())) return;
+
+    const fileName = selected.file.name || "analyzed-image";
+    let downloadUrl = selected.previewUrl;
+    let revokeDownloadUrl = false;
+
+    try {
+      setError("");
+      if (selected.serverId && selected.storedFileName) {
+        const response = await fetch(
+          `${API_BASE}/image-analyzer/${selected.serverId}/download`
+        );
+
+        if (!response.ok) {
+          const result = await readResponse(response);
+          throw new Error(result.message || "Image download failed.");
+        }
+
+        downloadUrl = URL.createObjectURL(await response.blob());
+        revokeDownloadUrl = true;
+      }
+    } catch (cause) {
+      await releaseGuestDownload();
+      setError(
+        cause instanceof Error ? cause.message : "Image download failed."
+      );
+      return;
+    }
+
+    try {
+      await trackDownload("Image analyzer", fileName, selected.file.size);
+
+      const link = document.createElement("a");
+      link.href = downloadUrl;
+      link.download = fileName;
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+
+      if (revokeDownloadUrl) {
+        window.setTimeout(() => URL.revokeObjectURL(downloadUrl), 1000);
+      }
+    } catch (cause) {
+      if (revokeDownloadUrl) URL.revokeObjectURL(downloadUrl);
+      setError(
+        cause instanceof Error ? cause.message : "Image download failed."
+      );
     }
   };
 
@@ -696,6 +795,7 @@ function ImageAnalyzer() {
                         type="text"
                         placeholder="Enter new image name"
                         value={editName}
+                        disabled={updating}
                         onChange={(event) =>
                           setEditName(event.target.value)
                         }
@@ -704,7 +804,12 @@ function ImageAnalyzer() {
                       <button
                         type="button"
                         onClick={handleUpdateImage}
-                        disabled={updating || !selected.serverId}
+                        disabled={
+                          updating ||
+                          !selected.serverId ||
+                          !editName.trim() ||
+                          editName.trim() === selected.file.name
+                        }
                       >
                         {updating ? "Updating..." : "Update image name"}
                       </button>
@@ -716,19 +821,35 @@ function ImageAnalyzer() {
                         <h2>Image properties</h2>
                       </div>
 
-                      <button
-                        className="copy-report"
-                        type="button"
-                        onClick={copyMetadata}
-                      >
-                        {copied ? (
-                          <Check size={15} />
-                        ) : (
-                          <Copy size={15} />
-                        )}
+                      <div className="report-actions">
+                        <button
+                          className="download-image"
+                          type="button"
+                          onClick={downloadImage}
+                          title={
+                            !selected.file.size
+                              ? "Re-upload this image to download it"
+                              : "Download original image"
+                          }
+                        >
+                          <Download size={14} />
+                          Download image
+                        </button>
 
-                        {copied ? "Copied" : "Copy details"}
-                      </button>
+                        <button
+                          className="copy-report"
+                          type="button"
+                          onClick={copyMetadata}
+                        >
+                          {copied ? (
+                            <Check size={15} />
+                          ) : (
+                            <Copy size={15} />
+                          )}
+
+                          {copied ? "Copied" : "Copy details"}
+                        </button>
+                      </div>
                     </div>
 
                     <div className="analyzer-stat-grid">

@@ -43,7 +43,8 @@ function UserAccountForm({
           </label>}
           <label className="modal-field">
             <span>Role</span>
-            <select value={accountForm.role} onChange={(event) => setAccountForm((current) => ({ ...current, role: event.target.value }))} disabled={!superAdmin}>
+            <select value={accountForm.role} onChange={(event) => setAccountForm((current) => ({ ...current, role: event.target.value }))} disabled={!superAdmin} required>
+              {accountDialog.mode === "create" && superAdmin && <option value="" disabled>Select role</option>}
               {roles.map((role) => <option value={role.key} key={role.key}>{role.label}</option>)}
             </select>
           </label>

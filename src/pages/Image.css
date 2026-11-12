@@ -41,7 +41,7 @@
   margin: 0;
   color: #21211f;
   font-family: Manrope, sans-serif;
-  font-size: clamp(38px, 5.5vw, 62px);
+  font-size: clamp(20px, 4.7vw, 40px);
   font-weight: 700;
   letter-spacing: -3.4px;
   line-height: 1.1;
@@ -55,7 +55,7 @@
 }
 
 .upload-card {
-  min-height: 337px;
+  min-height: 325px;
   margin-top: 43px;
   padding: 34px 24px 28px;
   display: flex;
@@ -495,6 +495,95 @@
   background: #f8f7ff;
 }
 
+@media (min-width: 701px) {
+  .hero.has-selected-file {
+    width: min(100%, 1120px);
+    display: grid;
+    grid-template-columns: minmax(280px, 0.85fr) minmax(0, 1.15fr);
+    align-content: center;
+    align-items: center;
+    gap: 18px;
+    padding: 26px 0 30px;
+  }
+
+  .hero.has-selected-file > .eyebrow,
+  .hero.has-selected-file > h1,
+  .hero.has-selected-file > .hero-subtitle,
+  .hero.has-selected-file > .trust-row {
+    display: none;
+  }
+
+  .hero.has-selected-file > .upload-card {
+    grid-column: 1;
+    grid-row: 1;
+    min-height: 220px;
+    margin: 0;
+    padding: 20px;
+  }
+
+  .hero.has-selected-file .file-preview {
+    align-items: flex-start;
+    gap: 12px;
+  }
+
+  .hero.has-selected-file .preview-image-wrap {
+    width: 82px;
+    height: 82px;
+  }
+
+  .hero.has-selected-file .file-preview-actions {
+    flex-direction: column;
+  }
+
+  .hero.has-selected-file > .image-preview-section {
+    grid-column: 2;
+    grid-row: 1;
+    margin: 0;
+  }
+
+  .hero.has-selected-file .preview-section-heading {
+    margin-bottom: 10px;
+  }
+
+  .hero.has-selected-file .preview-section-heading h2 {
+    font-size: 18px;
+  }
+
+  .hero.has-selected-file .preview-section-heading p {
+    font-size: 11px;
+  }
+
+  .hero.has-selected-file .preview-comparison {
+    gap: 10px;
+  }
+
+  .hero.has-selected-file .comparison-label {
+    min-height: 38px;
+    padding: 0 10px;
+    font-size: 11px;
+  }
+
+  .hero.has-selected-file .comparison-image {
+    height: clamp(170px, 29vh, 260px);
+    display: grid;
+    place-items: center;
+    overflow: hidden;
+  }
+
+  .hero.has-selected-file .comparison-image img {
+    height: 100%;
+    object-fit: contain;
+  }
+
+  .hero.has-selected-file .result-placeholder {
+    padding: 12px;
+  }
+
+  .hero.has-selected-file .result-placeholder p {
+    margin: 0;
+  }
+}
+
 @media (max-width: 700px) {
   .page-shell {
     padding: 0 22px;
@@ -562,7 +651,7 @@
   }
 
   .hero h1 {
-    font-size: 38px;
+    font-size: 32px;
   }
 
   .upload-card {

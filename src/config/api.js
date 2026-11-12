@@ -39,7 +39,7 @@ export async function removeBackgroundInBrowser(file, onStatus) {
   }
   const result = await imglyRemoveBackground(file, {
     model: "isnet_quint8",
-    device: "cpu",
+    device: "gpu",
     output: { format: "image/png" },
     progress: (key, current, total) => {
       const percent = Number.isFinite(current) && Number.isFinite(total) && total > 0
