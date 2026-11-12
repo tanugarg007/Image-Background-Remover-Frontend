@@ -345,6 +345,8 @@
   border-radius: 9px;
   font-size: 13px;
   font-weight: 600;
+  font-family: inherit;
+  text-decoration: none;
   transition: background-color 160ms ease, border-color 160ms ease, box-shadow 160ms ease;
 }
 

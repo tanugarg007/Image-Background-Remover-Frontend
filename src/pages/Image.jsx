@@ -32,6 +32,10 @@ function Image() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [message, setMessage] = useState("");
+  const [downloadReady, setDownloadReady] = useState(false);
+  const [downloadPreparing, setDownloadPreparing] = useState(false);
+  const pendingDownloadRef = useRef(null);
+  const downloadStartedRef = useRef(false);
 
   // Clean up temporary image URLs.
   useEffect(() => {
@@ -45,6 +49,13 @@ function Image() {
       }
     };
   }, [originalImage, processedImage]);
+
+  useEffect(() => () => {
+    if (pendingDownloadRef.current?.guestReservation) {
+      void releaseGuestDownload();
+    }
+    pendingDownloadRef.current = null;
+  }, []);
 
   useEffect(() => {
     let active = true;
@@ -94,10 +105,19 @@ function Image() {
     };
   }, []);
 
+  const clearPreparedDownload = () => {
+    const pendingDownload = pendingDownloadRef.current;
+    pendingDownloadRef.current = null;
+    downloadStartedRef.current = false;
+    setDownloadReady(false);
+    if (pendingDownload?.guestReservation) void releaseGuestDownload();
+  };
+
   // Select and validate an image.
   const handleFile = (file) => {
     if (!file) return;
 
+    clearPreparedDownload();
     setError("");
     setMessage("");
     setProcessedImage("");
@@ -152,6 +172,7 @@ function Image() {
   const handleRemoveBackground = async () => {
     if (!selectedFile || loading) return;
 
+    clearPreparedDownload();
     setLoading(true);
     setError("");
     setMessage("");
@@ -187,10 +208,32 @@ function Image() {
 
   // Download the processed image.
   const handleDownload = async () => {
-    if (!processedImage || loading) return;
+    if (downloadStartedRef.current) return;
+
+    if (pendingDownloadRef.current) {
+      const pendingDownload = pendingDownloadRef.current;
+      pendingDownloadRef.current = null;
+      downloadStartedRef.current = true;
+      window.setTimeout(() => {
+        setDownloadReady(false);
+        downloadStartedRef.current = false;
+      }, 0);
+      setMessage("Your download has started.");
+
+      const trackingRequest = pendingDownload.authenticated
+        ? trackAuthenticatedDownload("Background removal", pendingDownload.fileName, pendingDownload.fileSize)
+        : trackDownload("Background removal", pendingDownload.fileName, pendingDownload.fileSize);
+      void trackingRequest.catch((err) => {
+        console.error("Download tracking error:", err);
+        setError("The download started, but its activity could not be recorded.");
+      });
+      return;
+    }
+
+    if (!processedImage || loading || downloadPreparing) return;
     let guestReservation = false;
-    let trackingStarted = false;
     try {
+      setDownloadPreparing(true);
       setError("");
       setMessage("");
       const session = await getSessionStatus();
@@ -214,33 +257,30 @@ function Image() {
         guestReservation = true;
       }
 
-      const link = document.createElement("a");
-      link.href = processedImage;
-      link.download = processedFilename || "background-removed.png";
-      if (authenticated) {
-        await trackAuthenticatedDownload("Background removal", link.download, processedBlob?.size);
-      } else {
-        trackingStarted = true;
-        await trackDownload("Background removal", link.download, processedBlob?.size);
-      }
-
-      document.body.appendChild(link);
-      link.click();
-      link.remove();
-
+      pendingDownloadRef.current = {
+        authenticated,
+        guestReservation,
+        fileName: processedFilename || "background-removed.png",
+        fileSize: processedBlob?.size,
+      };
+      setDownloadReady(true);
+      setMessage("Your image is ready. Click Save Image to download it.");
     } catch (err) {
-      if (guestReservation && !trackingStarted) await releaseGuestDownload();
+      if (guestReservation) await releaseGuestDownload();
       console.error("Download error:", err);
       setError(
         err instanceof Error
           ? err.message
           : "Image download failed. Please try again."
       );
+    } finally {
+      setDownloadPreparing(false);
     }
   };
 
   // Start again with another image.
   const handleReset = () => {
+    clearPreparedDownload();
     setSelectedFile(null);
     setOriginalImage("");
     setProcessedImage("");
@@ -349,15 +389,27 @@ function Image() {
                     <Sparkles aria-hidden="true" />
                     {loading ? "Processing..." : "Remove background"}
                   </button>
-                  <button
-                    type="button"
-                    className="download-png-button"
-                    onClick={handleDownload}
-                    disabled={!processedImage || loading}
-                  >
-                    <Download aria-hidden="true" />
-                    Download Image
-                  </button>
+                  {downloadReady ? (
+                    <a
+                      className="download-png-button"
+                      href={processedImage}
+                      download={processedFilename || "background-removed.png"}
+                      onClick={handleDownload}
+                    >
+                      <Download aria-hidden="true" />
+                      Save Image
+                    </a>
+                  ) : (
+                    <button
+                      type="button"
+                      className="download-png-button"
+                      onClick={handleDownload}
+                      disabled={!processedImage || loading || downloadPreparing}
+                    >
+                      <Download aria-hidden="true" />
+                      {downloadPreparing ? "Preparing..." : "Download Image"}
+                    </button>
+                  )}
                 </div>
               </div>
             </div>

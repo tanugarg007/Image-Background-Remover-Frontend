@@ -43,8 +43,8 @@ function DownloadSuccessToast() {
 
       show({
         type: "success",
-        kicker: "DOWNLOAD COMPLETE",
-        title: "Your file is ready",
+        kicker: "DOWNLOAD STARTED",
+        title: "Your download started",
         message: link.getAttribute("download") || "Your file",
       });
     };
