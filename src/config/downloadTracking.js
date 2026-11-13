@@ -128,6 +128,9 @@ function showLoginPrompt() {
     window.removeEventListener("message", handleLoginMessage);
     overlay.remove();
     activeLoginPrompt = null;
+    if (authenticated) {
+      window.dispatchEvent(new CustomEvent("citc-auth-state-change"));
+    }
     resolvePrompt(authenticated);
   };
   const handleLoginMessage = (event) => {

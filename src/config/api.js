@@ -56,9 +56,10 @@ export function prepareBackgroundRemoval(onStatus) {
   return backgroundRemovalAssetsPromise;
 }
 
-export function getSessionStatus() {
+export function getSessionStatus(forceRefresh = false) {
+  if (forceRefresh) sessionStatusRequest = null;
   if (!sessionStatusRequest) {
-    sessionStatusRequest = fetch(`${API_USERS}/session-status`, {
+    const request = fetch(`${API_USERS}/session-status`, {
       credentials: "include",
       cache: "no-store",
     })
@@ -68,10 +69,16 @@ export function getSessionStatus() {
           throw new Error(payload.message || "Could not check session status.");
         }
         return payload;
-      })
-      .finally(() => {
-        sessionStatusRequest = null;
       });
+    sessionStatusRequest = request;
+    request.then(
+      () => {
+        if (sessionStatusRequest === request) sessionStatusRequest = null;
+      },
+      () => {
+        if (sessionStatusRequest === request) sessionStatusRequest = null;
+      }
+    );
   }
 
   return sessionStatusRequest;

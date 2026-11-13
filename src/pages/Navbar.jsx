@@ -53,14 +53,29 @@ function Navbar({ showAllTools, onToggleTools, tools = toolCatalog }) {
 
   useEffect(() => {
     let active = true
-    getSessionStatus()
-      .then((status) => {
-        if (active) setAuthenticated(status.authenticated === true)
-      })
-      .catch((error) => {
-        console.error('Could not check the signed-in state:', error)
-      })
-    return () => { active = false }
+    let requestId = 0
+    const refreshAuthentication = (force = false) => {
+      const currentRequestId = ++requestId
+      const request = getSessionStatus(force)
+      request
+        .then((status) => {
+          if (active && currentRequestId === requestId) {
+            setAuthenticated(status.authenticated === true)
+          }
+        })
+        .catch((error) => {
+          console.error('Could not check the signed-in state:', error)
+        })
+    }
+    const handleAuthenticationChange = () => refreshAuthentication(true)
+    refreshAuthentication()
+    window.addEventListener('focus', handleAuthenticationChange)
+    window.addEventListener('citc-auth-state-change', handleAuthenticationChange)
+    return () => {
+      active = false
+      window.removeEventListener('focus', handleAuthenticationChange)
+      window.removeEventListener('citc-auth-state-change', handleAuthenticationChange)
+    }
   }, [])
 
   const signOut = async () => {
