@@ -4,6 +4,7 @@ import {
   Crop,
   Download,
   ImagePlus,
+  Move,
   RotateCcw,
   Scan,
   Upload,
@@ -22,6 +23,7 @@ const aspectOptions = [
   { label: "16:9", value: 16 / 9 },
   { label: "3:4", value: 3 / 4 },
 ];
+const resizeHandles = ["nw", "n", "ne", "w", "e", "sw", "s", "se"];
 
 const clamp = (value, min, max) =>
   Math.min(Math.max(value, min), max);
@@ -51,6 +53,50 @@ function centeredCrop(stage, aspect) {
     y: (stage.height - height) / 2,
     width,
     height,
+  };
+}
+
+function getImageLayout(stage, crop, imageScale, fitWholeImage, imageOffset) {
+  const fitScale = Math.min(
+    crop.width / stage.width,
+    crop.height / stage.height
+  );
+  const coverScale = Math.max(
+    crop.width / stage.width,
+    crop.height / stage.height
+  );
+  const scale = (fitWholeImage ? fitScale : coverScale) * (imageScale / 100);
+  const width = stage.width * scale;
+  const height = stage.height * scale;
+  const centeredLeft = crop.x + (crop.width - width) / 2;
+  const centeredTop = crop.y + (crop.height - height) / 2;
+  const horizontalOffsets = [
+    crop.x - centeredLeft,
+    crop.x + crop.width - centeredLeft - width,
+  ];
+  const verticalOffsets = [
+    crop.y - centeredTop,
+    crop.y + crop.height - centeredTop - height,
+  ];
+  const minOffsetX = Math.min(...horizontalOffsets);
+  const maxOffsetX = Math.max(...horizontalOffsets);
+  const minOffsetY = Math.min(...verticalOffsets);
+  const maxOffsetY = Math.max(...verticalOffsets);
+  const offset = {
+    x: clamp(imageOffset.x, minOffsetX, maxOffsetX),
+    y: clamp(imageOffset.y, minOffsetY, maxOffsetY),
+  };
+
+  return {
+    width,
+    height,
+    left: centeredLeft + offset.x,
+    top: centeredTop + offset.y,
+    minOffsetX,
+    maxOffsetX,
+    minOffsetY,
+    maxOffsetY,
+    offset,
   };
 }
 
@@ -111,22 +157,27 @@ function ImageCropper() {
     if (!image || !workspace) return undefined;
 
     const updateStage = () => {
-      const maxWidth = Math.max(240, workspace.clientWidth);
+      const workspaceStyle = window.getComputedStyle(workspace);
+      const horizontalPadding =
+        parseFloat(workspaceStyle.paddingLeft) +
+        parseFloat(workspaceStyle.paddingRight);
+      const verticalPadding =
+        parseFloat(workspaceStyle.paddingTop) +
+        parseFloat(workspaceStyle.paddingBottom);
+      const maxWidth = Math.max(1, workspace.clientWidth - horizontalPadding);
+      const maxHeight = Math.max(
+        1,
+        Math.min(480, workspace.clientHeight - verticalPadding)
+      );
       const scale = Math.min(
         maxWidth / image.naturalWidth,
-        480 / image.naturalHeight,
+        maxHeight / image.naturalHeight,
         1
       );
 
       const nextStage = {
-        width: Math.max(
-          1,
-          Math.round(image.naturalWidth * scale)
-        ),
-        height: Math.max(
-          1,
-          Math.round(image.naturalHeight * scale)
-        ),
+        width: Math.max(1, image.naturalWidth * scale),
+        height: Math.max(1, image.naturalHeight * scale),
       };
 
       setStage(nextStage);
@@ -186,6 +237,7 @@ function ImageCropper() {
     setResultUrl("");
     setCropId("");
     setError("");
+    setImageOffset({ x: 0, y: 0 });
   };
 
   const getPoint = (event) => {
@@ -216,17 +268,34 @@ function ImageCropper() {
       mode,
       start: getPoint(event),
       initial: { ...crop },
+      initialOffset: image
+        ? getImageLayout(
+          stage,
+          crop,
+          imageScale,
+          fitWholeImage,
+          imageOffset
+        ).offset
+        : { ...imageOffset },
     };
   };
 
   const startImagePan = (event) => {
-    if (fitWholeImage || !image || event.target.closest(".crop-selection")) return;
+    if (!image || !crop) return;
     event.preventDefault();
+    event.stopPropagation();
     event.currentTarget.setPointerCapture?.(event.pointerId);
+    const layout = getImageLayout(
+      stage,
+      crop,
+      imageScale,
+      fitWholeImage,
+      imageOffset
+    );
     dragRef.current = {
       mode: "pan-image",
       start: getPoint(event),
-      initialOffset: { ...imageOffset },
+      initialOffset: layout.offset,
     };
   };
 
@@ -238,44 +307,85 @@ function ImageCropper() {
 
     if (mode === "pan-image") {
       const { initialOffset } = dragRef.current;
-      const maxOffsetX = (stage.width * (1 - imageScale / 100)) / 2;
-      const maxOffsetY = (stage.height * (1 - imageScale / 100)) / 2;
+      const layout = getImageLayout(
+        stage,
+        crop,
+        imageScale,
+        fitWholeImage,
+        initialOffset
+      );
       setImageOffset({
-        x: clamp(initialOffset.x + point.x - start.x, -maxOffsetX, maxOffsetX),
-        y: clamp(initialOffset.y + point.y - start.y, -maxOffsetY, maxOffsetY),
+        x: clamp(
+          initialOffset.x + point.x - start.x,
+          layout.minOffsetX,
+          layout.maxOffsetX
+        ),
+        y: clamp(
+          initialOffset.y + point.y - start.y,
+          layout.minOffsetY,
+          layout.maxOffsetY
+        ),
       });
       return;
     }
 
     if (mode === "move") {
-      setCrop({
+      const deltaX = point.x - start.x;
+      const deltaY = point.y - start.y;
+      const nextCrop = {
         ...initial,
         x: clamp(
-          initial.x + point.x - start.x,
+          initial.x + deltaX,
           0,
           Math.max(0, stage.width - initial.width)
         ),
         y: clamp(
-          initial.y + point.y - start.y,
+          initial.y + deltaY,
           0,
           Math.max(0, stage.height - initial.height)
         ),
+      };
+      setCrop(nextCrop);
+      setImageOffset({
+        x: dragRef.current.initialOffset.x - (nextCrop.x - initial.x),
+        y: dragRef.current.initialOffset.y - (nextCrop.y - initial.y),
       });
-
       return;
     }
 
-    const corner = mode.slice("resize-".length);
-    const resizeLeft = corner.endsWith("l");
-    const resizeTop = corner.startsWith("t");
-    const anchorX = resizeLeft ? initial.x + initial.width : initial.x;
-    const anchorY = resizeTop ? initial.y + initial.height : initial.y;
-    const maxWidth = resizeLeft ? anchorX : stage.width - anchorX;
-    const maxHeight = resizeTop ? anchorY : stage.height - anchorY;
+    const handle = mode.slice("resize-".length);
+    const resizeLeft = handle.includes("w");
+    const resizeRight = handle.includes("e");
+    const resizeTop = handle.includes("n");
+    const resizeBottom = handle.includes("s");
+    const hasHorizontal = resizeLeft || resizeRight;
+    const hasVertical = resizeTop || resizeBottom;
+    const centerX = initial.x + initial.width / 2;
+    const centerY = initial.y + initial.height / 2;
+    const anchorX = resizeLeft
+      ? initial.x + initial.width
+      : resizeRight
+      ? initial.x
+      : centerX;
+    const anchorY = resizeTop
+      ? initial.y + initial.height
+      : resizeBottom
+      ? initial.y
+      : centerY;
+    const maxWidth = hasHorizontal
+      ? resizeLeft
+        ? anchorX
+        : stage.width - anchorX
+      : 2 * Math.min(centerX, stage.width - centerX);
+    const maxHeight = hasVertical
+      ? resizeTop
+        ? anchorY
+        : stage.height - anchorY
+      : 2 * Math.min(centerY, stage.height - centerY);
     const widthDelta = point.x - start.x;
     const heightDelta = point.y - start.y;
-    let width = initial.width + (resizeLeft ? -widthDelta : widthDelta);
-    let height = initial.height + (resizeTop ? -heightDelta : heightDelta);
+    let width = initial.width + (resizeLeft ? -widthDelta : resizeRight ? widthDelta : 0);
+    let height = initial.height + (resizeTop ? -heightDelta : resizeBottom ? heightDelta : 0);
     const ratio = typeof aspect === "number"
       ? aspect
       : aspect === "full" && image
@@ -284,17 +394,39 @@ function ImageCropper() {
 
     if (ratio) {
       const boundedWidth = Math.min(maxWidth, maxHeight * ratio);
-      width = Math.min(width, height * ratio, boundedWidth);
-      width = Math.max(Math.min(35, boundedWidth), width);
+      let desiredWidth;
+      if (hasHorizontal && !hasVertical) {
+        desiredWidth = width;
+      } else if (!hasHorizontal && hasVertical) {
+        desiredWidth = height * ratio;
+      } else {
+        desiredWidth = Math.abs(width - initial.width) >=
+          Math.abs(height - initial.height) * ratio
+          ? width
+          : height * ratio;
+      }
+      width = clamp(desiredWidth, Math.min(35, boundedWidth), boundedWidth);
       height = width / ratio;
     } else {
-      width = clamp(width, Math.min(35, maxWidth), maxWidth);
-      height = clamp(height, Math.min(35, maxHeight), maxHeight);
+      width = hasHorizontal
+        ? clamp(width, Math.min(35, maxWidth), maxWidth)
+        : initial.width;
+      height = hasVertical
+        ? clamp(height, Math.min(35, maxHeight), maxHeight)
+        : initial.height;
     }
 
     setCrop({
-      x: resizeLeft ? anchorX - width : anchorX,
-      y: resizeTop ? anchorY - height : anchorY,
+      x: hasHorizontal
+        ? resizeLeft
+          ? anchorX - width
+          : anchorX
+        : centerX - width / 2,
+      y: hasVertical
+        ? resizeTop
+          ? anchorY - height
+          : anchorY
+        : centerY - height / 2,
       width,
       height,
     });
@@ -310,15 +442,17 @@ function ImageCropper() {
       return;
     }
 
-    const zoom = imageScale / 100;
-    const displayedWidth = stage.width * zoom;
-    const displayedHeight = stage.height * zoom;
-    const imageLeft = (stage.width - displayedWidth) / 2 + imageOffset.x;
-    const imageTop = (stage.height - displayedHeight) / 2 + imageOffset.y;
-    const scaleX = image.naturalWidth / displayedWidth;
-    const scaleY = image.naturalHeight / displayedHeight;
-    const selectedX = (crop.x - imageLeft) * scaleX;
-    const selectedY = (crop.y - imageTop) * scaleY;
+    const layout = getImageLayout(
+      stage,
+      crop,
+      imageScale,
+      fitWholeImage,
+      imageOffset
+    );
+    const scaleX = image.naturalWidth / layout.width;
+    const scaleY = image.naturalHeight / layout.height;
+    const selectedX = (crop.x - layout.left) * scaleX;
+    const selectedY = (crop.y - layout.top) * scaleY;
     const selectedWidth = crop.width * scaleX;
     const selectedHeight = crop.height * scaleY;
     const canvasWidth = Math.max(1, Math.round(selectedWidth));
@@ -506,6 +640,10 @@ function ImageCropper() {
     }
   };
 
+  const imageLayout = image && crop && stage.width
+    ? getImageLayout(stage, crop, imageScale, fitWholeImage, imageOffset)
+    : null;
+
   return (
     <main className="crop-page">
       <header className="crop-hero">
@@ -532,7 +670,7 @@ function ImageCropper() {
 
             <div>
               <strong>Image cropper</strong>
-              <small>Drag the frame to refine your composition</small>
+              <small>Drag inside the frame to position the image; use the center grip to move the frame</small>
             </div>
           </div>
 
@@ -571,6 +709,8 @@ function ImageCropper() {
                     setResultUrl("");
                     setCropId("");
                     setFitWholeImage(true);
+                    setImageScale(100);
+                    setImageOffset({ x: 0, y: 0 });
                   }}
                 >
                   Adjust crop
@@ -578,13 +718,17 @@ function ImageCropper() {
               </div>
             ) : image ? (
               <div
-                className={`crop-stage${!fitWholeImage && imageScale < 100 ? " is-pannable" : ""}`}
+                className={`crop-stage${imageLayout ? " is-pannable" : ""}`}
                 style={{
                   width: stage.width,
                   height: stage.height,
                   backgroundImage: `url("${imageUrl}")`,
-                  backgroundSize: `${imageScale}% ${imageScale}%`,
-                  backgroundPosition: `calc(50% + ${imageOffset.x}px) calc(50% + ${imageOffset.y}px)`,
+                  backgroundSize: imageLayout
+                    ? `${imageLayout.width}px ${imageLayout.height}px`
+                    : "100% 100%",
+                  backgroundPosition: imageLayout
+                    ? `${imageLayout.left}px ${imageLayout.top}px`
+                    : "0 0",
                 }}
                 onPointerDown={startImagePan}
                 onPointerMove={moveCropInteraction}
@@ -641,34 +785,36 @@ function ImageCropper() {
                         width: crop.width,
                         height: crop.height,
                       }}
-                      onPointerDown={(event) =>
-                        startCropInteraction(event, "move")
-                      }
+                      onPointerDown={(event) => {
+                        if (!event.target.closest(".crop-handle, .crop-frame-move")) {
+                          startImagePan(event);
+                        }
+                      }}
                     >
                       <i className="crop-grid-v crop-grid-v1" />
                       <i className="crop-grid-v crop-grid-v2" />
                       <i className="crop-grid-h crop-grid-h1" />
                       <i className="crop-grid-h crop-grid-h2" />
 
-                      <span
-                        className="crop-handle crop-handle-tl"
-                        onPointerDown={(event) => startCropInteraction(event, "resize-tl")}
-                      />
-                      <span
-                        className="crop-handle crop-handle-tr"
-                        onPointerDown={(event) => startCropInteraction(event, "resize-tr")}
-                      />
-                      <span
-                        className="crop-handle crop-handle-bl"
-                        onPointerDown={(event) => startCropInteraction(event, "resize-bl")}
-                      />
-
-                      <span
-                        className="crop-handle crop-handle-br"
+                      {resizeHandles.map((handle) => (
+                        <span
+                          key={handle}
+                          className={`crop-handle crop-handle-${handle}`}
+                          onPointerDown={(event) =>
+                            startCropInteraction(event, `resize-${handle}`)
+                          }
+                        />
+                      ))}
+                      <button
+                        type="button"
+                        className="crop-frame-move"
+                        aria-label="Move crop frame"
                         onPointerDown={(event) =>
-                          startCropInteraction(event, "resize-br")
+                          startCropInteraction(event, "move")
                         }
-                      />
+                      >
+                        <Move size={13} />
+                      </button>
                     </div>
                   </>
                 )}
@@ -728,6 +874,7 @@ function ImageCropper() {
                 disabled={!image}
                 onChange={(event) => {
                   setFitWholeImage(event.target.checked);
+                  setImageScale(100);
                   setImageOffset({ x: 0, y: 0 });
                   setResultUrl("");
                   setCropId("");
@@ -745,20 +892,19 @@ function ImageCropper() {
                 <input
                   id="crop-image-scale"
                   type="range"
-                  min="30"
-                  max="100"
+                  min={fitWholeImage ? "30" : "100"}
+                  max={fitWholeImage ? "100" : "300"}
                   step="5"
                   value={imageScale}
                   onChange={(event) => {
                     setImageScale(Number(event.target.value));
-                    setImageOffset({ x: 0, y: 0 });
                     setResultUrl("");
                     setCropId("");
                   }}
                 />
                 <small>{fitWholeImage
-                  ? "Make the whole photo smaller inside the selected ratio."
-                  : "Scale the photo inside the crop frame. Drag the photo to reposition it."}</small>
+                  ? "Fit the complete photo inside the frame; reduce its size if needed."
+                  : "Zoom into the frame and drag the image to reposition it without blank edges."}</small>
               </label>
             )}
 
