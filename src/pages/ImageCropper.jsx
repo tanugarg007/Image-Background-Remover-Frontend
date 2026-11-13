@@ -91,7 +91,7 @@ function ImageCropper() {
   });
   const [crop, setCrop] = useState(null);
   const [aspect, setAspect] = useState("full");
-  const [fitWholeImage, setFitWholeImage] = useState(false);
+  const [fitWholeImage, setFitWholeImage] = useState(true);
   const [imageScale, setImageScale] = useState(100);
   const [imageOffset, setImageOffset] = useState({ x: 0, y: 0 });
   const [resultUrl, setResultUrl] = useState("");
@@ -201,7 +201,7 @@ function ImageCropper() {
     setResultUrl("");
     setCropId("");
     setCrop(null);
-    setFitWholeImage(false);
+    setFitWholeImage(true);
     setImageScale(100);
     setImageOffset({ x: 0, y: 0 });
     setStage({ width: 0, height: 0 });
@@ -658,7 +658,7 @@ function ImageCropper() {
                   onClick={() => {
                     setResultUrl("");
                     setCropId("");
-                    setFitWholeImage(false);
+                    setFitWholeImage(true);
                     setImageScale(100);
                     setImageOffset({ x: 0, y: 0 });
                   }}
