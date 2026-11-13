@@ -4,10 +4,10 @@ import {
   Crop,
   Download,
   ImagePlus,
+  Move,
   RotateCcw,
   Scan,
   Upload,
-  ZoomIn,
 } from "lucide-react";
 
 import "./ImageCropper.css";
@@ -68,11 +68,33 @@ function getImageLayout(stage, crop, imageScale, fitWholeImage, imageOffset) {
   const scale = (fitWholeImage ? fitScale : coverScale) * (imageScale / 100);
   const width = stage.width * scale;
   const height = stage.height * scale;
+  const centeredLeft = crop.x + (crop.width - width) / 2;
+  const centeredTop = crop.y + (crop.height - height) / 2;
+  const horizontalOffsets = [
+    crop.x - centeredLeft,
+    crop.x + crop.width - centeredLeft - width,
+  ];
+  const verticalOffsets = [
+    crop.y - centeredTop,
+    crop.y + crop.height - centeredTop - height,
+  ];
+  const minOffsetX = Math.min(...horizontalOffsets);
+  const maxOffsetX = Math.max(...horizontalOffsets);
+  const minOffsetY = Math.min(...verticalOffsets);
+  const maxOffsetY = Math.max(...verticalOffsets);
+  const offsetX = clamp(imageOffset.x, minOffsetX, maxOffsetX);
+  const offsetY = clamp(imageOffset.y, minOffsetY, maxOffsetY);
+
   return {
     width,
     height,
-    left: crop.x + (crop.width - width) / 2 + imageOffset.x,
-    top: crop.y + (crop.height - height) / 2 + imageOffset.y,
+    left: centeredLeft + offsetX,
+    top: centeredTop + offsetY,
+    minOffsetX,
+    maxOffsetX,
+    minOffsetY,
+    maxOffsetY,
+    offset: { x: offsetX, y: offsetY },
   };
 }
 
@@ -254,8 +276,13 @@ function ImageCropper() {
       mode,
       start: getPoint(event),
       initial: { ...crop },
-      initialOffset: { ...imageOffset },
-      initialScale: imageScale,
+      initialOffset: getImageLayout(
+        stage,
+        crop,
+        imageScale,
+        fitWholeImage,
+        imageOffset
+      ).offset,
     };
   };
 
@@ -265,15 +292,29 @@ function ImageCropper() {
     const point = getPoint(event);
     const { mode, start, initial } = dragRef.current;
 
-    if (mode === "zoom-image") {
-      const maxScale = fitWholeImage ? 100 : 300;
-      setImageScale(
-        clamp(
-          dragRef.current.initialScale + (start.y - point.y) * 0.5,
-          30,
-          maxScale
-        )
+    if (mode === "pan-image") {
+      const { initialOffset } = dragRef.current;
+      const layout = getImageLayout(
+        stage,
+        crop,
+        imageScale,
+        fitWholeImage,
+        initialOffset
       );
+      const deltaX = point.x - start.x;
+      const deltaY = point.y - start.y;
+      setImageOffset({
+        x: clamp(
+          initialOffset.x + deltaX,
+          layout.minOffsetX,
+          layout.maxOffsetX
+        ),
+        y: clamp(
+          initialOffset.y + deltaY,
+          layout.minOffsetY,
+          layout.maxOffsetY
+        ),
+      });
       setResultUrl("");
       setCropId("");
       return;
@@ -754,13 +795,13 @@ function ImageCropper() {
                       ))}
                       <button
                         type="button"
-                        className="crop-image-zoom"
-                        aria-label="Drag up to zoom in or down to zoom out"
+                        className="crop-image-pan"
+                        aria-label="Drag to reposition image"
                         onPointerDown={(event) =>
-                          startCropInteraction(event, "zoom-image")
+                          startCropInteraction(event, "pan-image")
                         }
                       >
-                        <ZoomIn size={13} />
+                        <Move size={13} />
                       </button>
                     </div>
                   </>
@@ -850,8 +891,8 @@ function ImageCropper() {
                   }}
                 />
                 <small>{fitWholeImage
-                  ? "The complete photo scales with the frame. Drag the center handle or use this slider to zoom."
-                  : "The image fills the frame and scales with it. Drag the center handle or use this slider to zoom."}</small>
+                  ? "The complete photo scales with the frame. Drag the center handle to reposition it; use this slider to zoom."
+                  : "The image fills the frame and scales with it. Drag the center handle to reposition it; use this slider to zoom."}</small>
               </label>
             )}
 

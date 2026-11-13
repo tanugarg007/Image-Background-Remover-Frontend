@@ -332,7 +332,7 @@
 .crop-handle-e { right: -4px; }
 .crop-handle-w { left: -4px; }
 
-.crop-image-zoom {
+.crop-image-pan {
   position: absolute;
   z-index: 4;
   top: 50%;
@@ -348,7 +348,7 @@
   color: #5d4bc9;
   background: rgba(255, 255, 255, 0.92);
   box-shadow: 0 2px 8px rgba(28, 25, 38, 0.2);
-  cursor: ns-resize;
+  cursor: move;
   touch-action: none;
 }
 
