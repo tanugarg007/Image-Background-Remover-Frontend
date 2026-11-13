@@ -251,8 +251,16 @@ function ImageCropper() {
     const bounds = stageElement.getBoundingClientRect();
 
     return {
-      x: clamp(event.clientX - bounds.left, 0, stage.width),
-      y: clamp(event.clientY - bounds.top, 0, stage.height),
+      x: clamp(
+        (event.clientX - bounds.left) * (stage.width / bounds.width),
+        0,
+        stage.width
+      ),
+      y: clamp(
+        (event.clientY - bounds.top) * (stage.height / bounds.height),
+        0,
+        stage.height
+      ),
     };
   };
 
@@ -262,7 +270,9 @@ function ImageCropper() {
     event.preventDefault();
     event.stopPropagation();
 
-    event.currentTarget.setPointerCapture?.(event.pointerId);
+    stageRef.current
+      ?.querySelector(".crop-stage")
+      ?.setPointerCapture?.(event.pointerId);
 
     dragRef.current = {
       mode,
@@ -284,7 +294,9 @@ function ImageCropper() {
     if (!image || !crop) return;
     event.preventDefault();
     event.stopPropagation();
-    event.currentTarget.setPointerCapture?.(event.pointerId);
+    stageRef.current
+      ?.querySelector(".crop-stage")
+      ?.setPointerCapture?.(event.pointerId);
     const layout = getImageLayout(
       stage,
       crop,
