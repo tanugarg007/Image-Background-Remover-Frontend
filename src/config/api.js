@@ -6,6 +6,55 @@ export const API_ROOT = "/api";
 export const API_USERS = `${API_ROOT}/users`;
 
 let sessionStatusRequest;
+let backgroundRemovalModulePromise;
+let backgroundRemovalAssetsPromise;
+let backgroundRemovalStatus;
+
+const backgroundRemovalConfig = {
+  model: "isnet_quint8",
+  device: "gpu",
+  output: { format: "image/png" },
+  progress: (key, current, total) => {
+    if (!backgroundRemovalStatus) return;
+    const percent = Number.isFinite(current) && Number.isFinite(total) && total > 0
+      ? Math.min(100, Math.max(0, Math.round((current / total) * 100)))
+      : 0;
+    const stage = typeof key === "string" && key.startsWith("fetch:")
+      ? "Downloading model"
+      : "Removing background";
+    backgroundRemovalStatus(`${stage}… ${percent}%`);
+  },
+};
+
+function loadBackgroundRemovalModule() {
+  if (!backgroundRemovalModulePromise) {
+    backgroundRemovalModulePromise = import("@imgly/background-removal")
+      .then((library) => {
+        if (typeof library.removeBackground !== "function" || typeof library.preload !== "function") {
+          throw new Error("The background-removal model did not load correctly.");
+        }
+        return library;
+      })
+      .catch((error) => {
+        backgroundRemovalModulePromise = null;
+        throw error;
+      });
+  }
+  return backgroundRemovalModulePromise;
+}
+
+export function prepareBackgroundRemoval(onStatus) {
+  if (typeof onStatus === "function") backgroundRemovalStatus = onStatus;
+  if (!backgroundRemovalAssetsPromise) {
+    backgroundRemovalAssetsPromise = loadBackgroundRemovalModule()
+      .then(({ preload }) => preload(backgroundRemovalConfig))
+      .catch((error) => {
+        backgroundRemovalAssetsPromise = null;
+        throw error;
+      });
+  }
+  return backgroundRemovalAssetsPromise;
+}
 
 export function getSessionStatus() {
   if (!sessionStatusRequest) {
@@ -31,26 +80,10 @@ export function getSessionStatus() {
 export async function removeBackgroundInBrowser(file, onStatus) {
   onStatus?.("Loading background-removal model…");
 
-  const { removeBackground: imglyRemoveBackground } = await import(
-    "@imgly/background-removal"
-  );
-  if (typeof imglyRemoveBackground !== "function") {
-    throw new Error("The background-removal model did not load correctly.");
-  }
-  const result = await imglyRemoveBackground(file, {
-    model: "isnet_quint8",
-    device: "gpu",
-    output: { format: "image/png" },
-    progress: (key, current, total) => {
-      const percent = Number.isFinite(current) && Number.isFinite(total) && total > 0
-        ? Math.min(100, Math.max(0, Math.round((current / total) * 100)))
-        : 0;
-      const stage = typeof key === "string" && key.startsWith("fetch:")
-        ? "Downloading model"
-        : "Removing background";
-      onStatus?.(`${stage}… ${percent}%`);
-    },
-  });
+  if (typeof onStatus === "function") backgroundRemovalStatus = onStatus;
+  await prepareBackgroundRemoval(onStatus);
+  const { removeBackground } = await loadBackgroundRemovalModule();
+  const result = await removeBackground(file, backgroundRemovalConfig);
 
   if (!(result instanceof Blob) || result.size === 0) {
     throw new Error("Background removal returned an empty image.");

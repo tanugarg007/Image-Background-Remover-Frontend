@@ -10,7 +10,11 @@ import {
   CheckCircle2,
 } from "lucide-react";
 import "./Image.css";
-import { getSessionStatus, removeBackgroundInBrowser } from "../config/api.js";
+import {
+  getSessionStatus,
+  prepareBackgroundRemoval,
+  removeBackgroundInBrowser,
+} from "../config/api.js";
 import {
   releaseGuestDownload,
   requireLoginForDownload,
@@ -21,6 +25,8 @@ import { claimPendingDownload, savePendingDownload } from "../config/downloadHan
 
 function Image() {
   const fileInputRef = useRef(null);
+  const processingRef = useRef(false);
+  const warmupRequestRef = useRef(0);
 
   const [selectedFile, setSelectedFile] = useState(null);
   const [originalImage, setOriginalImage] = useState("");
@@ -94,9 +100,14 @@ function Image() {
     };
   }, []);
 
+  useEffect(() => () => {
+    warmupRequestRef.current += 1;
+  }, []);
+
   // Select and validate an image.
   const handleFile = (file) => {
     if (!file) return;
+    const warmupRequestId = ++warmupRequestRef.current;
 
     setError("");
     setMessage("");
@@ -123,6 +134,24 @@ function Image() {
 
     setSelectedFile(file);
     setOriginalImage(URL.createObjectURL(file));
+    setMessage("Preparing the background-removal model…");
+    const updateStatus = (nextStatus) => {
+      if (warmupRequestRef.current === warmupRequestId) setMessage(nextStatus);
+    };
+    void prepareBackgroundRemoval(updateStatus)
+      .then(() => {
+        if (warmupRequestRef.current === warmupRequestId && !processingRef.current) {
+          setMessage("Model ready. Click Remove background to continue.");
+        }
+      })
+      .catch((prepareError) => {
+        if (warmupRequestRef.current === warmupRequestId) {
+          setError(prepareError instanceof Error
+            ? prepareError.message
+            : "Could not prepare the background-removal model.");
+          setMessage("");
+        }
+      });
   };
 
   const handleFileChange = (event) => {
@@ -152,6 +181,7 @@ function Image() {
   const handleRemoveBackground = async () => {
     if (!selectedFile || loading) return;
 
+    processingRef.current = true;
     setLoading(true);
     setError("");
     setMessage("");
@@ -181,6 +211,7 @@ function Image() {
           : "Something went wrong. Please try again."
       );
     } finally {
+      processingRef.current = false;
       setLoading(false);
     }
   };
@@ -227,6 +258,7 @@ function Image() {
 
   // Start again with another image.
   const handleReset = () => {
+    warmupRequestRef.current += 1;
     setSelectedFile(null);
     setOriginalImage("");
     setProcessedImage("");
