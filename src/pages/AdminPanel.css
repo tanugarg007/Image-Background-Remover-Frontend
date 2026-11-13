@@ -689,6 +689,8 @@ button.matrix-access:disabled { cursor:default; }
 .role-picker-control select { width:100%; min-width:0; height:44px; flex:1; appearance:none; border:0; outline:0; color:#354057; background:transparent; font:700 11px "DM Sans",sans-serif; cursor:pointer; }
 .role-picker-control select option { color:#354057; background:#fff; }
 .role-picker-chevron { width:8px; height:8px; margin:0 3px 4px 0; border-right:1.5px solid #8b83a8; border-bottom:1.5px solid #8b83a8; transform:rotate(45deg); pointer-events:none; }
+.role-superadmin-view { min-height:34px; display:inline-flex; align-items:center; gap:7px; margin-top:9px; padding:0 10px; border:1px solid #e8e1fb; border-radius:9px; color:#705dc5; background:#f8f6ff; font:inherit; font-size:9px; font-weight:750; cursor:pointer; }
+.role-superadmin-view:hover { border-color:#cfc4f2; background:#f2efff; }
 .role-selected-summary { min-width:0; display:flex; align-items:center; gap:10px; margin-top:10px; padding:9px; border:1px solid #eceaf4; border-radius:11px; background:#fff; }
 .role-selected-summary .role-catalog-copy { flex:1; }
 .role-selected-summary .role-catalog-count { margin-left:0; }

@@ -212,7 +212,7 @@ function RolesPermissionsPage({ superAdmin, users = [], loadingUsers = false, on
 
   const selectedRoleInfo = roleOptions.find((role) => role.key === selectedRole);
   const assignedUsers = users.filter((user) => user.role === selectedRole);
-  const canEditPermissions = Boolean(selectedRole) && superAdmin && !loadingPermissions && !loadError && !savingKey;
+  const canEditPermissions = Boolean(selectedRole) && selectedRole !== "superadmin" && superAdmin && !loadingPermissions && !loadError && !savingKey;
   const hasUnsavedChanges = Boolean(selectedRole) && JSON.stringify(permissions[selectedRole]) !== JSON.stringify(draftPermissions[selectedRole]);
 
   return (
@@ -254,6 +254,17 @@ function RolesPermissionsPage({ superAdmin, users = [], loadingUsers = false, on
             </select>
             <span className="role-picker-chevron" aria-hidden="true" />
           </label>
+          {roleOptions.some((role) => role.key === "superadmin") && <button
+            type="button"
+            className="role-superadmin-view"
+            onClick={() => {
+              setSelectedRole("superadmin");
+              setSaveError("");
+              setSaveMessage("");
+            }}
+          >
+            <Sparkles size={14} /> View protected Superadmin permissions
+          </button>}
           {selectedRoleInfo && (() => {
             const RoleIcon = roleIcons[selectedRoleInfo.key] || UserRound;
             const roleAssignedCount = users.filter((user) => user.role === selectedRoleInfo.key).length;
@@ -277,7 +288,7 @@ function RolesPermissionsPage({ superAdmin, users = [], loadingUsers = false, on
         {loadError && <p className="admin-error role-settings-error" role="alert">{loadError}</p>}
         {saveError && <p className="admin-error role-settings-error" role="alert">{saveError}</p>}
 
-        {!selectedRole && <div className="role-permission-unselected-note"><ShieldCheck size={15} /><span>Select a role above to edit these permissions. They’re all unchecked until a role is selected.</span></div>}
+        {!selectedRole && <div className="role-permission-unselected-note"><ShieldCheck size={15} /><span>Select a role above to view its permissions. Superadmin permissions are always fully enabled.</span></div>}
         {permissionGroups.map((group) => (
           <section className="role-permission-group" key={group.title} aria-label={group.title}>
             <div className="role-permission-group-heading"><div><h3>{group.title}</h3><p>{group.description}</p></div><span>{selectedRole ? `${group.permissions.filter(({ key }) => draftPermissions[selectedRole]?.[key]).length}/${group.permissions.length} selected` : `0/${group.permissions.length} selected`}</span></div>
@@ -304,7 +315,7 @@ function RolesPermissionsPage({ superAdmin, users = [], loadingUsers = false, on
           <span>{!selectedRole ? "Choose a role to continue." : loadingPermissions ? "Loading permissions..." : hasUnsavedChanges ? "You have unsaved changes." : superAdmin ? "Permissions are up to date." : "Only a superadmin can change permissions."}</span>
           {savingKey && <span className="role-saving-indicator">Saving...</span>}
           {saveMessage && <p className="admin-success role-settings-success" role="status"><CheckCircle2 size={17} /><span>{saveMessage}</span></p>}
-          {selectedRole && superAdmin && <button type="button" className="role-save-button" onClick={savePermissions} disabled={!canEditPermissions || !hasUnsavedChanges}>{savingKey === selectedRole ? "Saving..." : "Save permissions"}</button>}
+          {selectedRole && selectedRole !== "superadmin" && superAdmin && <button type="button" className="role-save-button" onClick={savePermissions} disabled={!canEditPermissions || !hasUnsavedChanges}>{savingKey === selectedRole ? "Saving..." : "Save permissions"}</button>}
         </div>
       </section>
 
