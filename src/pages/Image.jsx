@@ -26,6 +26,7 @@ import { claimPendingDownload, savePendingDownload } from "../config/downloadHan
 function Image() {
   const fileInputRef = useRef(null);
   const processingRef = useRef(false);
+  const downloadPreparingRef = useRef(false);
   const warmupRequestRef = useRef(0);
 
   const [selectedFile, setSelectedFile] = useState(null);
@@ -179,7 +180,7 @@ function Image() {
   // Run background removal in the browser so image processing does not depend
   // on the Render service staying awake or completing a long request.
   const handleRemoveBackground = async () => {
-    if (!selectedFile || loading) return;
+    if (!selectedFile || loading || processingRef.current) return;
 
     processingRef.current = true;
     setLoading(true);
@@ -218,8 +219,9 @@ function Image() {
 
   // Download the processed image.
   const handleDownload = async () => {
-    if (!processedImage || !processedBlob || loading || downloadPreparing) return;
+    if (!processedImage || !processedBlob || loading || downloadPreparing || downloadPreparingRef.current) return;
     let reservationPending = false;
+    downloadPreparingRef.current = true;
     try {
       setDownloadPreparing(true);
       setError("");
@@ -236,13 +238,12 @@ function Image() {
       link.remove();
       reservationPending = false;
       setMessage("Your download has started.");
-
-      try {
-        await trackDownload("Background removal", fileName, processedBlob.size);
-      } catch (trackingError) {
+      const trackingRequest = trackDownload("Background removal", fileName, processedBlob.size);
+      setDownloadPreparing(false);
+      await trackingRequest.catch((trackingError) => {
         console.error("Download tracking error:", trackingError);
         setError("The download started, but its activity could not be recorded.");
-      }
+      });
     } catch (err) {
       if (reservationPending) await releaseGuestDownload();
       console.error("Download error:", err);
@@ -252,6 +253,7 @@ function Image() {
           : "Image download failed. Please try again."
       );
     } finally {
+      downloadPreparingRef.current = false;
       setDownloadPreparing(false);
     }
   };
