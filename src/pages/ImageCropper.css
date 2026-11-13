@@ -250,9 +250,6 @@
   user-select: none;
 }
 
-.crop-stage.is-pannable { cursor: grab; }
-.crop-stage.is-pannable:active { cursor: grabbing; }
-
 .crop-dim {
   position: absolute;
   z-index: 1;
@@ -265,11 +262,11 @@
   z-index: 2;
   border: 1px solid #fff;
   outline: 1px solid rgba(34, 28, 49, 0.24);
-  cursor: grab;
+  cursor: move;
   touch-action: none;
 }
 
-.crop-selection:active { cursor: grabbing; }
+.crop-selection:active { cursor: move; }
 
 .crop-grid-v,
 .crop-grid-h {
@@ -334,26 +331,6 @@
 }
 .crop-handle-e { right: -4px; }
 .crop-handle-w { left: -4px; }
-
-.crop-frame-move {
-  position: absolute;
-  z-index: 4;
-  top: 50%;
-  left: 50%;
-  width: 26px;
-  height: 24px;
-  display: grid;
-  place-items: center;
-  padding: 0;
-  transform: translate(-50%, -50%);
-  border: 1px solid rgba(255, 255, 255, 0.85);
-  border-radius: 6px;
-  color: #5d4bc9;
-  background: rgba(255, 255, 255, 0.9);
-  box-shadow: 0 2px 8px rgba(28, 25, 38, 0.2);
-  cursor: move;
-  touch-action: none;
-}
 
 .crop-controls {
   display: flex;

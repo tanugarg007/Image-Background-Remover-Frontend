@@ -4,7 +4,6 @@ import {
   Crop,
   Download,
   ImagePlus,
-  Move,
   RotateCcw,
   Scan,
   Upload,
@@ -290,56 +289,11 @@ function ImageCropper() {
     };
   };
 
-  const startImagePan = (event) => {
-    if (!image || !crop) return;
-    event.preventDefault();
-    event.stopPropagation();
-    stageRef.current
-      ?.querySelector(".crop-stage")
-      ?.setPointerCapture?.(event.pointerId);
-    const layout = getImageLayout(
-      stage,
-      crop,
-      imageScale,
-      fitWholeImage,
-      imageOffset
-    );
-    dragRef.current = {
-      mode: "pan-image",
-      start: getPoint(event),
-      initialOffset: layout.offset,
-    };
-  };
-
   const moveCropInteraction = (event) => {
     if (!dragRef.current) return;
 
     const point = getPoint(event);
     const { mode, start, initial } = dragRef.current;
-
-    if (mode === "pan-image") {
-      const { initialOffset } = dragRef.current;
-      const layout = getImageLayout(
-        stage,
-        crop,
-        imageScale,
-        fitWholeImage,
-        initialOffset
-      );
-      setImageOffset({
-        x: clamp(
-          initialOffset.x + point.x - start.x,
-          layout.minOffsetX,
-          layout.maxOffsetX
-        ),
-        y: clamp(
-          initialOffset.y + point.y - start.y,
-          layout.minOffsetY,
-          layout.maxOffsetY
-        ),
-      });
-      return;
-    }
 
     if (mode === "move") {
       const deltaX = point.x - start.x;
@@ -682,7 +636,7 @@ function ImageCropper() {
 
             <div>
               <strong>Image cropper</strong>
-              <small>Drag inside the frame to position the image; use the center grip to move the frame</small>
+              <small>Drag inside the frame to move it; use any handle to resize</small>
             </div>
           </div>
 
@@ -730,7 +684,7 @@ function ImageCropper() {
               </div>
             ) : image ? (
               <div
-                className={`crop-stage${imageLayout ? " is-pannable" : ""}`}
+                className="crop-stage"
                 style={{
                   width: stage.width,
                   height: stage.height,
@@ -742,7 +696,6 @@ function ImageCropper() {
                     ? `${imageLayout.left}px ${imageLayout.top}px`
                     : "0 0",
                 }}
-                onPointerDown={startImagePan}
                 onPointerMove={moveCropInteraction}
                 onPointerUp={finishCropInteraction}
                 onPointerCancel={finishCropInteraction}
@@ -797,11 +750,9 @@ function ImageCropper() {
                         width: crop.width,
                         height: crop.height,
                       }}
-                      onPointerDown={(event) => {
-                        if (!event.target.closest(".crop-handle, .crop-frame-move")) {
-                          startImagePan(event);
-                        }
-                      }}
+                      onPointerDown={(event) =>
+                        startCropInteraction(event, "move")
+                      }
                     >
                       <i className="crop-grid-v crop-grid-v1" />
                       <i className="crop-grid-v crop-grid-v2" />
@@ -817,16 +768,6 @@ function ImageCropper() {
                           }
                         />
                       ))}
-                      <button
-                        type="button"
-                        className="crop-frame-move"
-                        aria-label="Move crop frame"
-                        onPointerDown={(event) =>
-                          startCropInteraction(event, "move")
-                        }
-                      >
-                        <Move size={13} />
-                      </button>
                     </div>
                   </>
                 )}
@@ -916,7 +857,7 @@ function ImageCropper() {
                 />
                 <small>{fitWholeImage
                   ? "Fit the complete photo inside the frame; reduce its size if needed."
-                  : "Zoom into the frame and drag the image to reposition it without blank edges."}</small>
+                  : "Zoom the image inside the fixed frame without introducing blank edges."}</small>
               </label>
             )}
 
