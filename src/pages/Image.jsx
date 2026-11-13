@@ -194,19 +194,7 @@ function Image() {
       setError("");
       setMessage("");
       const fileName = processedFilename || "background-removed.png";
-      const allowed = await requireLoginForDownload(1, {
-        onLogin: async () => {
-          await savePendingDownload({
-            blob: processedBlob,
-            originalFile: selectedFile,
-            fileName,
-            tool: "Background removal",
-            returnTo: "/#background-removal",
-          });
-          return "/#background-removal";
-        },
-      });
-      if (!allowed) return;
+      if (!(await requireLoginForDownload())) return;
       reservationPending = true;
 
       const link = document.createElement("a");

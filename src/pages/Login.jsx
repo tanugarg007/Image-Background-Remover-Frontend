@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { ArrowLeft, ArrowRight, ArrowUpRight, CheckCircle2, Eye, EyeOff, LockKeyhole, Mail, ShieldCheck, Sparkles } from "lucide-react";
 import { Link, useNavigate } from "react-router-dom";
 import { API_USERS } from "../config/api.js";
@@ -23,6 +23,17 @@ function Login() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [notice, setNotice] = useState("");
   const [loginSuccess, setLoginSuccess] = useState(null);
+
+  useEffect(() => {
+    if (
+      !loginSuccess
+      || new URLSearchParams(window.location.search).get("popup") !== "1"
+      || !window.opener
+    ) return;
+
+    window.opener.postMessage({ type: "citc-login-complete" }, window.location.origin);
+    window.close();
+  }, [loginSuccess]);
 
   const handleSubmit = async (event) => {
     event.preventDefault();

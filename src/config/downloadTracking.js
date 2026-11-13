@@ -5,6 +5,7 @@ const DEVICE_ID_KEY = "citc-guest-device-id-v2";
 let currentQuota = null;
 let quotaInitializationPromise = null;
 const pendingReservationIds = [];
+let activeLoginPrompt = null;
 
 function getGuestDeviceId() {
   try {
@@ -89,8 +90,13 @@ export function refreshGuestDownloadQuota() {
   return getGuestDownloadQuota();
 }
 
-function showLoginPrompt({ onLogin } = {}) {
-  if (document.getElementById("guest-download-login-prompt")) return;
+function showLoginPrompt() {
+  if (activeLoginPrompt) return Promise.resolve(false);
+
+  let resolvePrompt;
+  const prompt = new Promise((resolve) => { resolvePrompt = resolve; });
+  activeLoginPrompt = prompt;
+
   const overlay = document.createElement("div");
   overlay.id = "guest-download-login-prompt";
   overlay.setAttribute("role", "presentation");
@@ -114,37 +120,63 @@ function showLoginPrompt({ onLogin } = {}) {
   const title = dialog.querySelector("#guest-download-title");
   const description = dialog.querySelector("#guest-download-description");
   title.textContent = "You've used all 3 free downloads";
-  description.textContent = onLogin
-    ? "This browser has reached its free download limit. Sign in to return to your processed image, then choose when to download it."
-    : "This browser has reached its free download limit. Sign in to continue downloading.";
+  description.textContent = "This browser has reached its free download limit. Sign in to continue downloading; your current tool will stay open.";
   const loginButton = dialog.querySelector("[data-login]");
   const closeButton = dialog.querySelector("[data-close]");
-  loginButton.addEventListener("click", async () => {
-    loginButton.disabled = true;
-    closeButton.disabled = true;
-    try {
-      const requestedReturnTo = onLogin ? await onLogin() : "";
-      const returnTo = typeof requestedReturnTo === "string" && requestedReturnTo.startsWith("/")
-        ? requestedReturnTo
-        : `${window.location.pathname}${window.location.search}${window.location.hash}`;
-      window.location.assign(`/login?${new URLSearchParams({ returnTo }).toString()}`);
-    } catch (error) {
-      description.textContent = `${error instanceof Error ? error.message : "Could not save your image."} Please try again.`;
-      loginButton.disabled = false;
-      closeButton.disabled = false;
+  let loginWindow = null;
+  const finish = (authenticated) => {
+    window.removeEventListener("message", handleLoginMessage);
+    overlay.remove();
+    activeLoginPrompt = null;
+    resolvePrompt(authenticated);
+  };
+  const handleLoginMessage = (event) => {
+    if (
+      event.origin === window.location.origin
+      && event.source === loginWindow
+      && event.data?.type === "citc-login-complete"
+    ) {
+      finish(true);
     }
+  };
+
+  loginButton.addEventListener("click", () => {
+    const returnTo = `${window.location.pathname}${window.location.search}${window.location.hash}`;
+    const loginUrl = `/login?${new URLSearchParams({ returnTo, popup: "1" }).toString()}`;
+    loginWindow = window.open("about:blank", "_blank");
+    if (!loginWindow) {
+      description.textContent = "Your browser blocked the sign-in window. Allow pop-ups for this site and try again; your tool will stay open.";
+      return;
+    }
+
+    loginButton.disabled = true;
+    window.addEventListener("message", handleLoginMessage);
+    loginWindow.location.replace(loginUrl);
   });
-  closeButton.addEventListener("click", () => overlay.remove());
+  closeButton.addEventListener("click", () => {
+    if (loginWindow && !loginWindow.closed) loginWindow.close();
+    finish(false);
+  });
   loginButton.focus();
+  return prompt;
 }
 
 export async function requireLoginForDownload(imageCount = 1, options = {}) {
   const count = Number.isFinite(imageCount) ? Math.max(1, Math.floor(imageCount)) : 1;
   try {
-    const result = await quotaRequest("/download-quota/consume", {
+    let result = await quotaRequest("/download-quota/consume", {
       method: "POST",
       body: JSON.stringify({ count }),
     });
+    if (!result.allowed && Number(result.remaining) === 0 && result.authenticated !== true) {
+      publishQuota(normalizeQuota({ ...currentQuota, ...result, error: "" }));
+      await waitForQuotaPaint();
+      if (!(await showLoginPrompt())) return false;
+      result = await quotaRequest("/download-quota/consume", {
+        method: "POST",
+        body: JSON.stringify({ count }),
+      });
+    }
     if (result.allowed && result.reservationId) {
       pendingReservationIds.push({ reservationId: result.reservationId, count });
       publishQuota({
@@ -166,8 +198,6 @@ export async function requireLoginForDownload(imageCount = 1, options = {}) {
     const authenticated = options.authenticated === true || result.authenticated === true;
     if (available === 0 && !authenticated) {
       publishQuota(normalizeQuota({ ...currentQuota, ...result, error: "" }));
-      await waitForQuotaPaint();
-      showLoginPrompt(options);
     } else {
       const error = authenticated
         ? "Could not reserve this download for your signed-in account. Please try again."

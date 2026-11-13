@@ -124,19 +124,7 @@ function BackgroundBlur() {
 
   const handleDownload = async () => {
     if (!file || !subjectBlob || downloading) return;
-    if (!(await requireLoginForDownload(1, {
-      onLogin: async () => {
-        await savePendingDownload({
-          blob: subjectBlob,
-          originalFile: file,
-          blurStrength,
-          fileName: "background-blur.png",
-          tool: "Background Blur",
-          returnTo: "/#background-blur",
-        });
-        return "/#background-blur";
-      },
-    }))) return;
+    if (!(await requireLoginForDownload())) return;
     setDownloading(true);
     setError("");
 
