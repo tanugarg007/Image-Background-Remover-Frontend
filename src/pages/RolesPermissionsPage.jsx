@@ -250,7 +250,7 @@ function RolesPermissionsPage({ superAdmin, users = [], loadingUsers = false, on
               }}
             >
               <option value="">Select role</option>
-              {roleOptions.map((role) => <option value={role.key} key={role.key}>{role.label}</option>)}
+              {roleOptions.filter((role) => role.key !== "superadmin").map((role) => <option value={role.key} key={role.key}>{role.label}</option>)}
             </select>
             <span className="role-picker-chevron" aria-hidden="true" />
           </label>
