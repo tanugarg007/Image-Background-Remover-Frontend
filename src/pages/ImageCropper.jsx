@@ -55,47 +55,15 @@ function centeredCrop(stage, aspect) {
   };
 }
 
-function getImageLayout(stage, crop, imageScale, fitWholeImage, imageOffset) {
-  const fitScale = Math.min(
-    crop.width / stage.width,
-    crop.height / stage.height
-  );
-  const coverScale = Math.max(
-    crop.width / stage.width,
-    crop.height / stage.height
-  );
-  const scale = (fitWholeImage ? fitScale : coverScale) * (imageScale / 100);
+function getImageLayout(stage, imageScale) {
+  const scale = imageScale / 100;
   const width = stage.width * scale;
   const height = stage.height * scale;
-  const centeredLeft = crop.x + (crop.width - width) / 2;
-  const centeredTop = crop.y + (crop.height - height) / 2;
-  const horizontalOffsets = [
-    crop.x - centeredLeft,
-    crop.x + crop.width - centeredLeft - width,
-  ];
-  const verticalOffsets = [
-    crop.y - centeredTop,
-    crop.y + crop.height - centeredTop - height,
-  ];
-  const minOffsetX = Math.min(...horizontalOffsets);
-  const maxOffsetX = Math.max(...horizontalOffsets);
-  const minOffsetY = Math.min(...verticalOffsets);
-  const maxOffsetY = Math.max(...verticalOffsets);
-  const offset = {
-    x: clamp(imageOffset.x, minOffsetX, maxOffsetX),
-    y: clamp(imageOffset.y, minOffsetY, maxOffsetY),
-  };
-
   return {
     width,
     height,
-    left: centeredLeft + offset.x,
-    top: centeredTop + offset.y,
-    minOffsetX,
-    maxOffsetX,
-    minOffsetY,
-    maxOffsetY,
-    offset,
+    left: (stage.width - width) / 2,
+    top: (stage.height - height) / 2,
   };
 }
 
@@ -116,7 +84,6 @@ function ImageCropper() {
   const [aspect, setAspect] = useState("full");
   const [fitWholeImage, setFitWholeImage] = useState(true);
   const [imageScale, setImageScale] = useState(100);
-  const [imageOffset, setImageOffset] = useState({ x: 0, y: 0 });
   const [resultUrl, setResultUrl] = useState("");
   const [error, setError] = useState("");
   const [saving, setSaving] = useState(false);
@@ -226,7 +193,6 @@ function ImageCropper() {
     setCrop(null);
     setFitWholeImage(true);
     setImageScale(100);
-    setImageOffset({ x: 0, y: 0 });
     setStage({ width: 0, height: 0 });
   };
 
@@ -236,7 +202,6 @@ function ImageCropper() {
     setResultUrl("");
     setCropId("");
     setError("");
-    setImageOffset({ x: 0, y: 0 });
   };
 
   const getPoint = (event) => {
@@ -277,15 +242,6 @@ function ImageCropper() {
       mode,
       start: getPoint(event),
       initial: { ...crop },
-      initialOffset: image
-        ? getImageLayout(
-          stage,
-          crop,
-          imageScale,
-          fitWholeImage,
-          imageOffset
-        ).offset
-        : { ...imageOffset },
     };
   };
 
@@ -312,10 +268,6 @@ function ImageCropper() {
         ),
       };
       setCrop(nextCrop);
-      setImageOffset({
-        x: dragRef.current.initialOffset.x - (nextCrop.x - initial.x),
-        y: dragRef.current.initialOffset.y - (nextCrop.y - initial.y),
-      });
       return;
     }
 
@@ -408,13 +360,7 @@ function ImageCropper() {
       return;
     }
 
-    const layout = getImageLayout(
-      stage,
-      crop,
-      imageScale,
-      fitWholeImage,
-      imageOffset
-    );
+    const layout = getImageLayout(stage, imageScale);
     const scaleX = image.naturalWidth / layout.width;
     const scaleY = image.naturalHeight / layout.height;
     const selectedX = (crop.x - layout.left) * scaleX;
@@ -606,8 +552,8 @@ function ImageCropper() {
     }
   };
 
-  const imageLayout = image && crop && stage.width
-    ? getImageLayout(stage, crop, imageScale, fitWholeImage, imageOffset)
+  const imageLayout = image && stage.width
+    ? getImageLayout(stage, imageScale)
     : null;
 
   return (
@@ -676,7 +622,6 @@ function ImageCropper() {
                     setCropId("");
                     setFitWholeImage(true);
                     setImageScale(100);
-                    setImageOffset({ x: 0, y: 0 });
                   }}
                 >
                   Adjust crop
@@ -828,14 +773,13 @@ function ImageCropper() {
                 onChange={(event) => {
                   setFitWholeImage(event.target.checked);
                   setImageScale(100);
-                  setImageOffset({ x: 0, y: 0 });
                   setResultUrl("");
                   setCropId("");
                 }}
               />
               <span>
                 <strong>Fit whole image</strong>
-                <small>Keep the whole photo visible while cropping. Areas outside the photo stay transparent.</small>
+                <small>Keep the complete photo visible in the preview; the crop frame stays independent.</small>
               </span>
             </label>
 
@@ -856,8 +800,8 @@ function ImageCropper() {
                   }}
                 />
                 <small>{fitWholeImage
-                  ? "Fit the complete photo inside the frame; reduce its size if needed."
-                  : "Zoom the image inside the fixed frame without introducing blank edges."}</small>
+                  ? "Show the complete photo in the preview; the crop frame stays fixed."
+                  : "Zoom the photo while keeping the crop frame fixed."}</small>
               </label>
             )}
 
@@ -931,11 +875,11 @@ function ImageCropper() {
             <div className="crop-hint">
               <span>✦</span>
               <p>
-                <strong>{fitWholeImage ? "Full image fit" : "Fine-tune your frame"}</strong>
+                <strong>{fitWholeImage ? "Full image visible" : "Image stays fixed"}</strong>
                 <small>
                   {fitWholeImage
-                    ? "The whole photo stays visible inside the selected ratio. Turn this off to crop manually."
-                    : "Drag inside the crop area to reposition. Pull the corner handle to resize."}
+                    ? "Move or resize the crop frame independently of the photo."
+                    : "Use Image Size to zoom; move or resize only the crop frame."}
                 </small>
               </p>
             </div>
