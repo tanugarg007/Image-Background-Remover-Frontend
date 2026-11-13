@@ -16,6 +16,9 @@ function UserAccountForm({
   const closeForm = () => {
     if (!savingAccount) setAccountDialog(null);
   };
+  const selectableRoles = accountDialog.mode === "create"
+    ? roles.filter((role) => role.key !== "superadmin")
+    : roles;
 
   return (
     <div className="account-modal-backdrop" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget) closeForm(); }}>
@@ -45,7 +48,7 @@ function UserAccountForm({
             <span>Role</span>
             <select value={accountForm.role} onChange={(event) => setAccountForm((current) => ({ ...current, role: event.target.value }))} disabled={!superAdmin} required>
               {accountDialog.mode === "create" && superAdmin && <option value="" disabled>Select role</option>}
-              {roles.map((role) => <option value={role.key} key={role.key}>{role.label}</option>)}
+              {selectableRoles.map((role) => <option value={role.key} key={role.key}>{role.label}</option>)}
             </select>
           </label>
           <label className="modal-field">
