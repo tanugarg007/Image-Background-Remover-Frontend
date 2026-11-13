@@ -168,10 +168,9 @@ function RolesPermissionsPage({ superAdmin, users = [], loadingUsers = false, on
       if (!response.ok) throw new Error(data.message || "Could not update role permission.");
       setPermissions(data.permissions || initialPermissions);
       setDraftPermissions(data.permissions || initialPermissions);
-      setSaveMessage("Permissions saved. Refreshing the page...");
+      setSaveMessage("Permissions saved.");
       const roleLabel = roleOptions.find((role) => role.key === selectedRole)?.label || selectedRole;
       showToast("success", "Permissions updated", `${roleLabel} permissions were saved.`);
-      window.setTimeout(() => window.location.reload(), 1800);
     } catch (error) {
       const message = error.message || "Could not update role permission.";
       setSaveError(message);
