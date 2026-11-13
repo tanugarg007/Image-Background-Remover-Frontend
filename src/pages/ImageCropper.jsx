@@ -265,32 +265,38 @@ function ImageCropper() {
       return;
     }
 
-    let width = Math.max(35, initial.width + point.x - start.x);
-    let height = Math.max(35, initial.height + point.y - start.y);
+    const corner = mode.slice("resize-".length);
+    const resizeLeft = corner.endsWith("l");
+    const resizeTop = corner.startsWith("t");
+    const anchorX = resizeLeft ? initial.x + initial.width : initial.x;
+    const anchorY = resizeTop ? initial.y + initial.height : initial.y;
+    const maxWidth = resizeLeft ? anchorX : stage.width - anchorX;
+    const maxHeight = resizeTop ? anchorY : stage.height - anchorY;
+    const widthDelta = point.x - start.x;
+    const heightDelta = point.y - start.y;
+    let width = initial.width + (resizeLeft ? -widthDelta : widthDelta);
+    let height = initial.height + (resizeTop ? -heightDelta : heightDelta);
+    const ratio = typeof aspect === "number"
+      ? aspect
+      : aspect === "full" && image
+      ? image.naturalWidth / image.naturalHeight
+      : null;
 
-    if (typeof aspect === "number") {
-      if (width / height > aspect) {
-        width = height * aspect;
-      } else {
-        height = width / aspect;
-      }
-    }
-
-    width = Math.min(width, stage.width - initial.x);
-    height = Math.min(height, stage.height - initial.y);
-
-    if (typeof aspect === "number") {
-      if (width / height > aspect) {
-        width = height * aspect;
-      } else {
-        height = width / aspect;
-      }
+    if (ratio) {
+      const boundedWidth = Math.min(maxWidth, maxHeight * ratio);
+      width = Math.min(width, height * ratio, boundedWidth);
+      width = Math.max(Math.min(35, boundedWidth), width);
+      height = width / ratio;
+    } else {
+      width = clamp(width, Math.min(35, maxWidth), maxWidth);
+      height = clamp(height, Math.min(35, maxHeight), maxHeight);
     }
 
     setCrop({
-      ...initial,
-      width: Math.max(1, width),
-      height: Math.max(1, height),
+      x: resizeLeft ? anchorX - width : anchorX,
+      y: resizeTop ? anchorY - height : anchorY,
+      width,
+      height,
     });
   };
 
@@ -304,49 +310,34 @@ function ImageCropper() {
       return;
     }
 
-    let sourceX = 0;
-    let sourceY = 0;
-    let sourceWidth;
-    let sourceHeight;
-    let canvasWidth;
-    let canvasHeight;
-    let destinationX = 0;
-    let destinationY = 0;
-    let destinationWidth;
-    let destinationHeight;
-
-    if (fitWholeImage) {
-      sourceWidth = image.naturalWidth;
-      sourceHeight = image.naturalHeight;
-      const targetRatio = typeof aspect === "number"
-        ? aspect
-        : sourceWidth / sourceHeight;
-      const sourceRatio = sourceWidth / sourceHeight;
-      if (sourceRatio > targetRatio) {
-        canvasWidth = sourceWidth;
-        canvasHeight = Math.ceil(sourceWidth / targetRatio);
-      } else {
-        canvasHeight = sourceHeight;
-        canvasWidth = Math.ceil(sourceHeight * targetRatio);
-      }
-      destinationWidth = sourceWidth * (imageScale / 100);
-      destinationHeight = sourceHeight * (imageScale / 100);
-      destinationX = (canvasWidth - destinationWidth) / 2;
-      destinationY = (canvasHeight - destinationHeight) / 2;
-    } else {
-      const scaleX = image.naturalWidth / stage.width;
-      const scaleY = image.naturalHeight / stage.height;
-      sourceWidth = image.naturalWidth;
-      sourceHeight = image.naturalHeight;
-      canvasWidth = Math.max(1, Math.round(crop.width * scaleX));
-      canvasHeight = Math.max(1, Math.round(crop.height * scaleY));
-      const imageLeft = (stage.width * (1 - imageScale / 100)) / 2 + imageOffset.x;
-      const imageTop = (stage.height * (1 - imageScale / 100)) / 2 + imageOffset.y;
-      destinationX = (imageLeft - crop.x) * scaleX;
-      destinationY = (imageTop - crop.y) * scaleY;
-      destinationWidth = image.naturalWidth * (imageScale / 100);
-      destinationHeight = image.naturalHeight * (imageScale / 100);
+    const zoom = imageScale / 100;
+    const displayedWidth = stage.width * zoom;
+    const displayedHeight = stage.height * zoom;
+    const imageLeft = (stage.width - displayedWidth) / 2 + imageOffset.x;
+    const imageTop = (stage.height - displayedHeight) / 2 + imageOffset.y;
+    const scaleX = image.naturalWidth / displayedWidth;
+    const scaleY = image.naturalHeight / displayedHeight;
+    const selectedX = (crop.x - imageLeft) * scaleX;
+    const selectedY = (crop.y - imageTop) * scaleY;
+    const selectedWidth = crop.width * scaleX;
+    const selectedHeight = crop.height * scaleY;
+    const canvasWidth = Math.max(1, Math.round(selectedWidth));
+    const canvasHeight = Math.max(1, Math.round(selectedHeight));
+    const sourceX = clamp(selectedX, 0, image.naturalWidth);
+    const sourceY = clamp(selectedY, 0, image.naturalHeight);
+    const sourceRight = clamp(selectedX + selectedWidth, 0, image.naturalWidth);
+    const sourceBottom = clamp(selectedY + selectedHeight, 0, image.naturalHeight);
+    const sourceWidth = Math.max(0, sourceRight - sourceX);
+    const sourceHeight = Math.max(0, sourceBottom - sourceY);
+    if (sourceWidth === 0 || sourceHeight === 0) {
+      setError("The crop frame must overlap the image.");
+      return;
     }
+
+    const destinationX = (sourceX - selectedX) / scaleX;
+    const destinationY = (sourceY - selectedY) / scaleY;
+    const destinationWidth = sourceWidth / scaleX;
+    const destinationHeight = sourceHeight / scaleY;
 
     const canvas = document.createElement("canvas");
     canvas.width = canvasWidth;
@@ -359,17 +350,19 @@ function ImageCropper() {
       return;
     }
 
-    context.drawImage(
-      image,
-      sourceX,
-      sourceY,
-      sourceWidth,
-      sourceHeight,
-      destinationX,
-      destinationY,
-      destinationWidth,
-      destinationHeight
-    );
+    if (sourceWidth > 0 && sourceHeight > 0) {
+      context.drawImage(
+        image,
+        sourceX,
+        sourceY,
+        sourceWidth,
+        sourceHeight,
+        destinationX,
+        destinationY,
+        destinationWidth,
+        destinationHeight
+      );
+    }
 
     setSaving(true);
     setError("");
@@ -566,11 +559,9 @@ function ImageCropper() {
           >
             {resultUrl ? (
               <div className="crop-result-preview">
-                <h2>{fitWholeImage ? "Full image fitted" : "Crop applied"}</h2>
+                <h2>Crop applied</h2>
                 <p className="crop-result-description">
-                  {fitWholeImage
-                    ? `Whole image kept · ${aspectOptions.find((option) => option.value === aspect)?.label || "Full image"} frame · transparent padding`
-                    : `Crop applied · ${aspectOptions.find((option) => option.value === aspect)?.label || "Free"} frame`}
+                  {`Selected area · ${aspectOptions.find((option) => option.value === aspect)?.label || "Free"} frame`}
                 </p>
                 <img src={resultUrl} alt="Cropped result" />
                 <button
@@ -600,7 +591,7 @@ function ImageCropper() {
                 onPointerUp={finishCropInteraction}
                 onPointerCancel={finishCropInteraction}
               >
-                {crop && !fitWholeImage && (
+                {crop && (
                   <>
                     <div
                       className="crop-dim"
@@ -659,14 +650,23 @@ function ImageCropper() {
                       <i className="crop-grid-h crop-grid-h1" />
                       <i className="crop-grid-h crop-grid-h2" />
 
-                      <span className="crop-handle crop-handle-tl" />
-                      <span className="crop-handle crop-handle-tr" />
-                      <span className="crop-handle crop-handle-bl" />
+                      <span
+                        className="crop-handle crop-handle-tl"
+                        onPointerDown={(event) => startCropInteraction(event, "resize-tl")}
+                      />
+                      <span
+                        className="crop-handle crop-handle-tr"
+                        onPointerDown={(event) => startCropInteraction(event, "resize-tr")}
+                      />
+                      <span
+                        className="crop-handle crop-handle-bl"
+                        onPointerDown={(event) => startCropInteraction(event, "resize-bl")}
+                      />
 
                       <span
                         className="crop-handle crop-handle-br"
                         onPointerDown={(event) =>
-                          startCropInteraction(event, "resize")
+                          startCropInteraction(event, "resize-br")
                         }
                       />
                     </div>
@@ -735,7 +735,7 @@ function ImageCropper() {
               />
               <span>
                 <strong>Fit whole image</strong>
-                <small>Keep the full photo inside the selected ratio. Empty space will be transparent.</small>
+                <small>Keep the whole photo visible while cropping. Areas outside the photo stay transparent.</small>
               </span>
             </label>
 

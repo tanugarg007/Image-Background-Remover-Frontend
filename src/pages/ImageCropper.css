@@ -302,12 +302,13 @@
   border: 1.5px solid #6553d1;
   border-radius: 3px;
   background: white;
+  touch-action: none;
 }
 
-.crop-handle-tl { top: -5px; left: -5px; }
-.crop-handle-tr { top: -5px; right: -5px; }
-.crop-handle-bl { bottom: -5px; left: -5px; }
-.crop-handle-br { right: -5px; bottom: -5px; cursor: nwse-resize; touch-action: none; }
+.crop-handle-tl { top: -5px; left: -5px; cursor: nwse-resize; }
+.crop-handle-tr { top: -5px; right: -5px; cursor: nesw-resize; }
+.crop-handle-bl { bottom: -5px; left: -5px; cursor: nesw-resize; }
+.crop-handle-br { right: -5px; bottom: -5px; cursor: nwse-resize; }
 
 .crop-controls {
   display: flex;
