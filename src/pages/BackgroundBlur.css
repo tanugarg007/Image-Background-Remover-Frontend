@@ -299,7 +299,7 @@
   }
 
   .background-blur-shell.has-file .background-blur-image-frame {
-    height: clamp(140px, 23vh, 220px);
+    height: clamp(260px, 42vh, 420px);
   }
 
   .background-blur-shell.has-file .background-blur-controls {
@@ -332,6 +332,6 @@
   .background-blur-workspace-heading { align-items: stretch; flex-direction: column; }
   .background-blur-workspace-actions { width: 100%; min-width: 0; }
   .background-blur-previews { grid-template-columns: 1fr; }
-  .background-blur-image-frame { height: 260px; }
+  .background-blur-image-frame { height: clamp(280px, 55vh, 420px); }
   .background-blur-footer { flex-direction: column; align-items: center; text-align: center; }
 }
