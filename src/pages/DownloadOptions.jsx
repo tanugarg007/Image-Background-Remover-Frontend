@@ -174,10 +174,10 @@ function DownloadOptions() {
       const link = document.createElement("a");
       link.href = entry.url;
       link.download = entry.file.name;
-      await trackDownload("Downloads", entry.file.name, entry.file.size);
       document.body.appendChild(link);
       link.click();
       link.remove();
+      await trackDownload("Downloads", entry.file.name, entry.file.size);
     } catch (err) {
       await releaseGuestDownload();
       setError(err.message || "Download failed.");
@@ -234,11 +234,10 @@ function DownloadOptions() {
       link.href = url;
       link.download = `images-${Date.now()}.zip`;
 
-      await trackDownload("Downloads", link.download, blob.size);
-
       document.body.appendChild(link);
       link.click();
       link.remove();
+      await trackDownload("Downloads", link.download, blob.size);
 
       window.setTimeout(() => {
         URL.revokeObjectURL(url);

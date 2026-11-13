@@ -141,35 +141,16 @@ function showLoginPrompt({ onLogin } = {}) {
 export async function requireLoginForDownload(imageCount = 1, options = {}) {
   const count = Number.isFinite(imageCount) ? Math.max(1, Math.floor(imageCount)) : 1;
   try {
-    // Refresh before reserving so another tab's downloads and reservations
-    // cannot leave this tab showing an outdated remaining count.
-    quotaInitializationPromise = null;
-    await getGuestDownloadQuota();
-    const remaining = Number(currentQuota?.remaining) || 0;
-    const authenticated = options.authenticated === true || currentQuota?.authenticated === true;
-    if (!authenticated && remaining < count) {
-      if (remaining === 0) {
-        await waitForQuotaPaint();
-        showLoginPrompt(options);
-      } else {
-        publishQuota({
-          ...currentQuota,
-          error: `This download needs ${count} downloads, but only ${remaining} remain.`,
-        });
-      }
-      return false;
-    }
     const result = await quotaRequest("/download-quota/consume", {
       method: "POST",
       body: JSON.stringify({ count }),
     });
     if (result.allowed && result.reservationId) {
       pendingReservationIds.push({ reservationId: result.reservationId, count });
-      const remainingBeforeReservation = Number(currentQuota?.remaining ?? GUEST_DOWNLOAD_LIMIT);
       publishQuota({
         ...currentQuota,
         ...result,
-        remaining: Math.max(0, Math.min(Number(result.remaining), remainingBeforeReservation - count)),
+        remaining: Math.max(0, Number(result.remaining) || 0),
         error: "",
       });
       return true;
@@ -182,6 +163,7 @@ export async function requireLoginForDownload(imageCount = 1, options = {}) {
       return false;
     }
     const available = Number(result.remaining ?? currentQuota?.remaining) || 0;
+    const authenticated = options.authenticated === true || result.authenticated === true;
     if (available === 0 && !authenticated) {
       publishQuota(normalizeQuota({ ...currentQuota, ...result, error: "" }));
       await waitForQuotaPaint();

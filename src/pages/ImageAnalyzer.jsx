@@ -576,14 +576,13 @@ function ImageAnalyzer() {
     }
 
     try {
-      await trackDownload("Image analyzer", fileName, selected.file.size);
-
       const link = document.createElement("a");
       link.href = downloadUrl;
       link.download = fileName;
       document.body.appendChild(link);
       link.click();
       link.remove();
+      await trackDownload("Image analyzer", fileName, selected.file.size);
 
       if (revokeDownloadUrl) {
         window.setTimeout(() => URL.revokeObjectURL(downloadUrl), 1000);

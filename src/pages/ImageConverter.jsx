@@ -245,11 +245,11 @@ function ImageConverter() {
 
       link.href = url;
       link.download = `${name}.${format.toLowerCase()}`;
-      await trackDownload("Image converter", link.download, blob.size);
 
       document.body.appendChild(link);
       link.click();
       link.remove();
+      await trackDownload("Image converter", link.download, blob.size);
 
       setTimeout(() => URL.revokeObjectURL(url), 1000);
     } catch (err) {

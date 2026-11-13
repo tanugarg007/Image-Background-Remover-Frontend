@@ -291,11 +291,11 @@ function ImageCompressor() {
       const link = document.createElement("a");
       link.href = downloadUrl;
       link.download = `compressed-${baseName}${extension}`;
-      await trackDownload("Image compressor", link.download, blob.size);
 
       document.body.appendChild(link);
       link.click();
       link.remove();
+      await trackDownload("Image compressor", link.download, blob.size);
     } catch (err) {
       await releaseGuestDownload();
       console.error("Download error:", err);

@@ -598,11 +598,11 @@ function ImageCropper() {
       link.download = `${
         file.name.replace(/\.[^.]+$/, "") || "image"
       }-cropped.png`;
-      await trackDownload("Image cropper", link.download, blob.size);
 
       document.body.appendChild(link);
       link.click();
       link.remove();
+      await trackDownload("Image cropper", link.download, blob.size);
 
       setTimeout(() => URL.revokeObjectURL(downloadUrl), 1000);
     } catch (cause) {

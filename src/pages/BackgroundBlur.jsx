@@ -190,10 +190,10 @@ function BackgroundBlur() {
       const link = document.createElement("a");
       link.href = downloadFileUrl;
       link.download = payload.data.fileName || "background-blur.png";
-      await trackDownload("Background Blur", link.download, output.size);
       document.body.appendChild(link);
       link.click();
       link.remove();
+      await trackDownload("Background Blur", link.download, output.size);
       window.setTimeout(() => URL.revokeObjectURL(downloadFileUrl), 1000);
     } catch (downloadError) {
       await releaseGuestDownload();

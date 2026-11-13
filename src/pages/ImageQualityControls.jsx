@@ -483,13 +483,13 @@ function ImageQualityControls() {
   const downloadOptimizedImage = async () => {
     if (!outputUrl || !(await requireLoginForDownload())) return;
     try {
-      await trackDownload("Quality controls", downloadName, outputBlob?.size);
       const link = document.createElement("a");
       link.href = outputUrl;
       link.download = downloadName;
       document.body.appendChild(link);
       link.click();
       link.remove();
+      await trackDownload("Quality controls", downloadName, outputBlob?.size);
     } catch (err) {
       await releaseGuestDownload();
       setError(err instanceof Error ? err.message : "Download failed.");
@@ -540,11 +540,11 @@ function ImageQualityControls() {
       const link = document.createElement("a");
       link.href = url;
       link.download = `${getFileBaseName(imageName)}-optimized.${extension}`;
-      await trackDownload("Quality controls", link.download, blob.size);
 
       document.body.appendChild(link);
       link.click();
       link.remove();
+      await trackDownload("Quality controls", link.download, blob.size);
 
       setTimeout(() => URL.revokeObjectURL(url), 1000);
       setMessage("Download started.");

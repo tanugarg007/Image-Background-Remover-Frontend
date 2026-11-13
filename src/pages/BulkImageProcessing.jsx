@@ -610,11 +610,11 @@ function BulkImageProcessing() {
       link.download = `${getBaseName(
         item.file.name
       )}.${getExtension(item.outputFormat)}`;
-      await trackDownload("Bulk image processing", link.download, blob.size);
 
       document.body.appendChild(link);
       link.click();
       link.remove();
+      await trackDownload("Bulk image processing", link.download, blob.size);
 
       setTimeout(() => {
         URL.revokeObjectURL(downloadUrl);
@@ -664,10 +664,10 @@ function BulkImageProcessing() {
       link.href = downloadUrl;
       link.download = "bulk-processed-images.zip";
 
-      await trackDownload("Bulk image processing", link.download, zipBlob.size);
       document.body.appendChild(link);
       link.click();
       link.remove();
+      await trackDownload("Bulk image processing", link.download, zipBlob.size);
       setTimeout(() => URL.revokeObjectURL(downloadUrl), 60000);
     } catch (err) {
       await releaseGuestDownload();
