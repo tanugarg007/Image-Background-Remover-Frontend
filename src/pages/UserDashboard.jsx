@@ -241,13 +241,13 @@ function UserDashboard() {
               </div>
               <div className="user-history-card">
                 <div className="user-history-heading"><div><span>YOUR LIBRARY</span><h2>Download history</h2><p>Files you’ve saved while signed in, all in one place.</p></div><span className="user-history-count">{downloads.length} {downloads.length === 1 ? "file" : "files"}</span></div>
-                {loading || historyLoading ? <div className="user-history-state"><span className="user-history-loader" /><p>Getting your downloads ready…</p></div> : downloads.length ? (
+                {downloads.length ? (
                   <div className="user-history-list">{downloads.map((item) => {
                     const date = item.downloadedAt ? new Date(item.downloadedAt) : null;
                     const fileSize = typeof item.fileSize === "number" ? (item.fileSize >= 1024 * 1024 ? `${(item.fileSize / (1024 * 1024)).toFixed(1)} MB` : `${Math.max(1, Math.round(item.fileSize / 1024))} KB`) : "Size unavailable";
                     return <article key={`${item.source}-${item._id}`}><span className="user-history-file-icon"><FileArchive size={19} /></span><span className="user-history-file-info"><strong title={item.fileName}>{item.fileName || "Untitled download"}</strong><small><span>{item.tool || "Creative tool"}</span><i />{date && !Number.isNaN(date.getTime()) ? date.toLocaleString(undefined, { dateStyle: "medium", timeStyle: "short" }) : "Date unavailable"}</small></span><span className="user-history-file-size">{fileSize}</span></article>;
                   })}</div>
-                ) : <div className="user-history-state"><span className="user-history-empty-icon"><Download size={23} /></span><h3>Your library is ready</h3><p>Downloads you make while signed in will show up here.</p><button type="button" onClick={() => changeSection("tools")}>Explore your tools <ArrowUpRight size={15} /></button></div>}
+                ) : loading || historyLoading ? null : <div className="user-history-state"><span className="user-history-empty-icon"><Download size={23} /></span><h3>Your library is ready</h3><p>Downloads you make while signed in will show up here.</p><button type="button" onClick={() => changeSection("tools")}>Explore your tools <ArrowUpRight size={15} /></button></div>}
               </div>
             </section>
           )}
