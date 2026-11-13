@@ -332,6 +332,26 @@
 .crop-handle-e { right: -4px; }
 .crop-handle-w { left: -4px; }
 
+.crop-image-zoom {
+  position: absolute;
+  z-index: 4;
+  top: 50%;
+  left: 50%;
+  width: 26px;
+  height: 26px;
+  display: grid;
+  place-items: center;
+  padding: 0;
+  transform: translate(-50%, -50%);
+  border: 1px solid rgba(255, 255, 255, 0.9);
+  border-radius: 50%;
+  color: #5d4bc9;
+  background: rgba(255, 255, 255, 0.92);
+  box-shadow: 0 2px 8px rgba(28, 25, 38, 0.2);
+  cursor: ns-resize;
+  touch-action: none;
+}
+
 .crop-controls {
   display: flex;
   flex-direction: column;

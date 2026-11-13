@@ -7,6 +7,7 @@ import {
   RotateCcw,
   Scan,
   Upload,
+  ZoomIn,
 } from "lucide-react";
 
 import "./ImageCropper.css";
@@ -90,7 +91,7 @@ function ImageCropper() {
   });
   const [crop, setCrop] = useState(null);
   const [aspect, setAspect] = useState("full");
-  const [fitWholeImage, setFitWholeImage] = useState(true);
+  const [fitWholeImage, setFitWholeImage] = useState(false);
   const [imageScale, setImageScale] = useState(100);
   const [imageOffset, setImageOffset] = useState({ x: 0, y: 0 });
   const [resultUrl, setResultUrl] = useState("");
@@ -200,7 +201,7 @@ function ImageCropper() {
     setResultUrl("");
     setCropId("");
     setCrop(null);
-    setFitWholeImage(true);
+    setFitWholeImage(false);
     setImageScale(100);
     setImageOffset({ x: 0, y: 0 });
     setStage({ width: 0, height: 0 });
@@ -254,6 +255,7 @@ function ImageCropper() {
       start: getPoint(event),
       initial: { ...crop },
       initialOffset: { ...imageOffset },
+      initialScale: imageScale,
     };
   };
 
@@ -262,6 +264,20 @@ function ImageCropper() {
 
     const point = getPoint(event);
     const { mode, start, initial } = dragRef.current;
+
+    if (mode === "zoom-image") {
+      const maxScale = fitWholeImage ? 100 : 300;
+      setImageScale(
+        clamp(
+          dragRef.current.initialScale + (start.y - point.y) * 0.5,
+          30,
+          maxScale
+        )
+      );
+      setResultUrl("");
+      setCropId("");
+      return;
+    }
 
     if (mode === "move") {
       const deltaX = point.x - start.x;
@@ -642,7 +658,7 @@ function ImageCropper() {
                   onClick={() => {
                     setResultUrl("");
                     setCropId("");
-                    setFitWholeImage(true);
+                    setFitWholeImage(false);
                     setImageScale(100);
                     setImageOffset({ x: 0, y: 0 });
                   }}
@@ -736,6 +752,16 @@ function ImageCropper() {
                           }
                         />
                       ))}
+                      <button
+                        type="button"
+                        className="crop-image-zoom"
+                        aria-label="Drag up to zoom in or down to zoom out"
+                        onPointerDown={(event) =>
+                          startCropInteraction(event, "zoom-image")
+                        }
+                      >
+                        <ZoomIn size={13} />
+                      </button>
                     </div>
                   </>
                 )}
@@ -803,7 +829,7 @@ function ImageCropper() {
               />
               <span>
                 <strong>Fit whole image</strong>
-                <small>Fit the photo inside the crop frame; resizing the frame scales the photo too.</small>
+                <small>Keep the complete photo inside the frame. Turn this off to fill the frame without side gaps.</small>
               </span>
             </label>
 
@@ -813,7 +839,7 @@ function ImageCropper() {
                 <input
                   id="crop-image-scale"
                   type="range"
-                  min={fitWholeImage ? "30" : "100"}
+                  min="30"
                   max={fitWholeImage ? "100" : "300"}
                   step="5"
                   value={imageScale}
@@ -824,8 +850,8 @@ function ImageCropper() {
                   }}
                 />
                 <small>{fitWholeImage
-                  ? "The complete photo stays fitted inside the frame as you resize it."
-                  : "Zoom into the frame; resizing it also adjusts the photo scale."}</small>
+                  ? "The complete photo scales with the frame. Drag the center handle or use this slider to zoom."
+                  : "The image fills the frame and scales with it. Drag the center handle or use this slider to zoom."}</small>
               </label>
             )}
 
@@ -902,8 +928,8 @@ function ImageCropper() {
                 <strong>{fitWholeImage ? "Full image fit" : "Cover fit"}</strong>
                 <small>
                   {fitWholeImage
-                    ? "The full photo scales with the crop frame."
-                    : "The photo covers the frame and scales with it; use Image Size to zoom further."}
+                    ? "The full photo stays visible as the frame changes."
+                    : "Side gaps are removed by filling the frame; the photo stays centered."}
                 </small>
               </p>
             </div>
