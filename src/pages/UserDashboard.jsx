@@ -18,7 +18,7 @@ import {
   Sparkles,
   UserRound,
 } from "lucide-react";
-import { API_USERS, getSessionStatus } from "../config/api.js";
+import { API_USERS } from "../config/api.js";
 import { toolCatalog } from "./Navbar.jsx";
 import "./UserDashboard.css";
 
@@ -41,7 +41,10 @@ function UserDashboard() {
   const [user, setUser] = useState(null);
   const [downloads, setDownloads] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [historyLoading, setHistoryLoading] = useState(false);
   const [error, setError] = useState("");
+  const [historyError, setHistoryError] = useState("");
+  const [historyRefreshId, setHistoryRefreshId] = useState(0);
   const userPath = location.pathname
     .slice("/user".length)
     .split("/")
@@ -78,35 +81,24 @@ function UserDashboard() {
     const controller = new AbortController();
     const load = async () => {
       try {
-        const status = await getSessionStatus();
-        if (!status.authenticated) {
-          navigate("/login", { replace: true });
-          return;
-        }
-
         const response = await fetch(`${API_USERS}/me`, {
           credentials: "include",
           cache: "no-store",
           signal: controller.signal,
         });
         const payload = await response.json().catch(() => ({}));
-        if (!response.ok || !payload.user) {
+        if (response.status === 401) {
           navigate("/login", { replace: true });
           return;
+        }
+        if (!response.ok || !payload.user) {
+          throw new Error(payload.message || "Could not load your account.");
         }
         if (["admin", "superadmin"].includes(payload.user.role)) {
           navigate(payload.user.role === "superadmin" ? "/superadmin" : "/admin", { replace: true });
           return;
         }
         setUser(payload.user);
-        const historyResponse = await fetch(`${API_USERS}/my/downloads`, {
-          credentials: "include",
-          cache: "no-store",
-          signal: controller.signal,
-        });
-        const history = await historyResponse.json().catch(() => ({}));
-        if (!historyResponse.ok) throw new Error(history.message || "Could not load your downloads.");
-        setDownloads(Array.isArray(history.data) ? history.data : []);
       } catch (requestError) {
         if (requestError.name !== "AbortError") setError(requestError.message || "Could not load your workspace.");
       } finally {
@@ -117,25 +109,48 @@ function UserDashboard() {
     return () => controller.abort();
   }, [navigate]);
 
+  useEffect(() => {
+    if (section !== "downloads") return undefined;
+
+    const controller = new AbortController();
+    const loadHistory = async () => {
+      setHistoryLoading(true);
+      setHistoryError("");
+      try {
+        const response = await fetch(`${API_USERS}/my/downloads`, {
+          credentials: "include",
+          cache: "no-store",
+          signal: controller.signal,
+        });
+        const history = await response.json().catch(() => ({}));
+        if (response.status === 401) {
+          navigate("/login", { replace: true });
+          return;
+        }
+        if (!response.ok) throw new Error(history.message || "Could not load your downloads.");
+        setDownloads(Array.isArray(history.data) ? history.data : []);
+      } catch (requestError) {
+        if (requestError.name !== "AbortError") {
+          setHistoryError(requestError.message || "Could not load your downloads.");
+        }
+      } finally {
+        if (!controller.signal.aborted) setHistoryLoading(false);
+      }
+    };
+
+    void loadHistory();
+    return () => controller.abort();
+  }, [historyRefreshId, navigate, section]);
+
   const signOut = async () => {
     try { await fetch(`${API_USERS}/logout`, { method: "POST", credentials: "include" }); }
     finally { navigate("/login", { replace: true }); }
   };
 
-  const openDownloads = async () => {
+  const openDownloads = () => {
     changeSection("downloads");
-    setLoading(true);
-    setError("");
-    try {
-      const response = await fetch(`${API_USERS}/my/downloads`, { credentials: "include", cache: "no-store" });
-      const payload = await response.json().catch(() => ({}));
-      if (!response.ok) throw new Error(payload.message || "Could not load your downloads.");
-      setDownloads(Array.isArray(payload.data) ? payload.data : []);
-    } catch (requestError) {
-      setError(requestError.message || "Could not load your downloads.");
-    } finally {
-      setLoading(false);
-    }
+    setHistoryError("");
+    setHistoryRefreshId((current) => current + 1);
   };
 
   const activeTool = routeTool;
@@ -192,6 +207,7 @@ function UserDashboard() {
             </section>
           )}
           {error && <p className="user-error" role="alert">{error}</p>}
+          {section === "downloads" && historyError && <p className="user-error" role="alert">{historyError}</p>}
           {activeTool ? <activeTool.Component /> : section === "tools" ? (
             <section className="user-tools-section" id="user-tools" aria-label="Image tools">
               <div className="user-tools-heading">
@@ -213,7 +229,9 @@ function UserDashboard() {
               </div>
             </section>
           ) : section === "account" ? (
-            <section className="user-info-card"><div><small>NAME</small><strong>{user?.name || "—"}</strong></div><div><small>EMAIL</small><strong>{user?.email || "—"}</strong></div><div><small>ROLE</small><strong>{user?.role || "—"}</strong></div></section>
+            loading
+              ? <section className="user-info-card" aria-busy="true"><div><small>ACCOUNT</small><strong>Loading your account…</strong></div></section>
+              : <section className="user-info-card"><div><small>NAME</small><strong>{user?.name || "—"}</strong></div><div><small>EMAIL</small><strong>{user?.email || "—"}</strong></div><div><small>ROLE</small><strong>{user?.role || "—"}</strong></div></section>
           ) : (
             <section className="user-downloads" aria-label="My downloads">
               <div className="user-downloads-overview">
@@ -223,7 +241,7 @@ function UserDashboard() {
               </div>
               <div className="user-history-card">
                 <div className="user-history-heading"><div><span>YOUR LIBRARY</span><h2>Download history</h2><p>Files you’ve saved while signed in, all in one place.</p></div><span className="user-history-count">{downloads.length} {downloads.length === 1 ? "file" : "files"}</span></div>
-                {loading ? <div className="user-history-state"><span className="user-history-loader" /><p>Getting your downloads ready…</p></div> : downloads.length ? (
+                {loading || historyLoading ? <div className="user-history-state"><span className="user-history-loader" /><p>Getting your downloads ready…</p></div> : downloads.length ? (
                   <div className="user-history-list">{downloads.map((item) => {
                     const date = item.downloadedAt ? new Date(item.downloadedAt) : null;
                     const fileSize = typeof item.fileSize === "number" ? (item.fileSize >= 1024 * 1024 ? `${(item.fileSize / (1024 * 1024)).toFixed(1)} MB` : `${Math.max(1, Math.round(item.fileSize / 1024))} KB`) : "Size unavailable";
