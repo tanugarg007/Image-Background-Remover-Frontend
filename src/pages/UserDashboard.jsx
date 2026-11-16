@@ -5,15 +5,21 @@ import {
   Archive,
   ArrowDown,
   ArrowUpRight,
+  CalendarDays,
+  CheckCircle2,
+  Clock3,
   Crop,
   Download,
+  Eye,
   FileArchive,
   FileImage,
   Layers,
   LogOut,
+  MessageSquareReply,
   MessageSquareText,
   Minimize2,
   Palette,
+  RefreshCw,
   ScanSearch,
   SlidersHorizontal,
   Sparkles,
@@ -40,6 +46,12 @@ const feedbackStatusLabels = {
   pending: "Pending",
   reviewed: "Reviewed",
   resolved: "Resolved",
+};
+
+const feedbackStatusIcons = {
+  pending: Clock3,
+  reviewed: Eye,
+  resolved: CheckCircle2,
 };
 
 function UserDashboard() {
@@ -213,6 +225,12 @@ function UserDashboard() {
 
   const activeTool = routeTool;
   const firstName = user?.name?.trim().split(/\s+/)[0];
+  const feedbackCounts = feedbackItems.reduce((counts, item) => {
+    const status = item.status || "pending";
+    if (Object.prototype.hasOwnProperty.call(counts, status)) counts[status] += 1;
+    return counts;
+  }, { pending: 0, reviewed: 0, resolved: 0 });
+  const latestFeedbackDate = feedbackItems[0]?.createdAt ? new Date(feedbackItems[0].createdAt) : null;
   return (
     <div className="user-dashboard">
       <main className="user-main">
@@ -227,7 +245,7 @@ function UserDashboard() {
           <div className="user-topbar-account"><span>{user?.email}</span><button className="user-signout" onClick={signOut}><LogOut size={15} /><span>Sign out</span></button></div>
         </header>
         <div className={`user-content ${activeTool ? "has-active-tool" : ""}`}>
-          {!activeTool && (
+          {!activeTool && section !== "feedback" && (
             <section className={`user-welcome ${section === "tools" ? "user-welcome-tools" : ""}`}>
               <div className="user-welcome-copy">
                 <span>{section === "tools" ? "YOUR CREATIVE WORKSPACE" : "YOUR ACCOUNT"}</span>
@@ -271,7 +289,6 @@ function UserDashboard() {
           )}
           {error && <p className="user-error" role="alert">{error}</p>}
           {section === "downloads" && historyError && <p className="user-error" role="alert">{historyError}</p>}
-          {section === "feedback" && feedbackError && <p className="user-error" role="alert">{feedbackError}</p>}
           {activeTool ? <activeTool.Component /> : section === "tools" ? (
             <section className="user-tools-section" id="user-tools" aria-label="Image tools">
               <div className="user-tools-heading">
@@ -297,45 +314,105 @@ function UserDashboard() {
               ? <section className="user-info-card" aria-busy="true"><div><small>ACCOUNT</small><strong>Loading your account…</strong></div></section>
               : <section className="user-info-card"><div><small>NAME</small><strong>{user?.name || "—"}</strong></div><div><small>EMAIL</small><strong>{user?.email || "—"}</strong></div><div><small>ROLE</small><strong>{user?.role || "—"}</strong></div></section>
           ) : section === "feedback" ? (
-            <section className="user-feedback-section" aria-label="My feedback">
-              <div className="user-history-card">
-                <div className="user-history-heading">
-                  <div><span>YOUR MESSAGES</span><h2>Feedback history</h2><p>Submitted messages and replies from our team.</p></div>
+            <section className="user-feedback-page" aria-label="My feedback">
+              <header className="user-feedback-hero">
+                <div className="user-feedback-hero-copy">
+                  <span className="user-feedback-eyebrow"><MessageSquareText size={14} /> FEEDBACK CENTER</span>
+                  <h2>Your voice helps us improve.</h2>
+                  <p>Track every message you’ve shared and see updates from our team in one place.</p>
                   <button className="user-feedback-new" type="button" onClick={() => navigate("/feedback")}>
-                    Share feedback <ArrowUpRight size={15} />
+                    Share new feedback <ArrowUpRight size={15} />
                   </button>
                 </div>
+                <div className="user-feedback-hero-art" aria-hidden="true">
+                  <span className="user-feedback-orbit user-feedback-orbit-one" />
+                  <span className="user-feedback-orbit user-feedback-orbit-two" />
+                  <span className="user-feedback-art-icon"><MessageSquareText size={30} /></span>
+                  <span className="user-feedback-art-spark">✦</span>
+                </div>
+              </header>
+
+              <div className="user-feedback-overview" aria-label="Feedback summary">
+                <article className="user-feedback-stat user-feedback-stat-total">
+                  <span className="user-feedback-stat-icon"><MessageSquareText size={17} /></span>
+                  <span><small>TOTAL MESSAGES</small><strong>{feedbackItems.length}</strong></span>
+                  <em>{feedbackItems.length === 1 ? "message" : "messages"}</em>
+                </article>
+                <article className="user-feedback-stat user-feedback-stat-pending">
+                  <span className="user-feedback-stat-icon"><Clock3 size={17} /></span>
+                  <span><small>PENDING</small><strong>{feedbackCounts.pending}</strong></span>
+                </article>
+                <article className="user-feedback-stat user-feedback-stat-reviewed">
+                  <span className="user-feedback-stat-icon"><Eye size={17} /></span>
+                  <span><small>REVIEWED</small><strong>{feedbackCounts.reviewed}</strong></span>
+                </article>
+                <article className="user-feedback-stat user-feedback-stat-resolved">
+                  <span className="user-feedback-stat-icon"><CheckCircle2 size={17} /></span>
+                  <span><small>RESOLVED</small><strong>{feedbackCounts.resolved}</strong></span>
+                </article>
+              </div>
+
+              <div className="user-feedback-history">
+                <div className="user-feedback-history-heading">
+                  <div>
+                    <span>YOUR MESSAGES</span>
+                    <h2>Feedback history</h2>
+                    <p>Submitted messages, current status, and replies.</p>
+                  </div>
+                  <span className="user-feedback-history-count">
+                    {feedbackItems.length} {feedbackItems.length === 1 ? "entry" : "entries"}
+                  </span>
+                </div>
                 {feedbackState === "idle" || feedbackState === "loading" ? (
-                  <div className="user-feedback-state" aria-busy="true"><span className="user-history-loader" /><p>Loading your feedback…</p></div>
+                  <div className="user-feedback-state" aria-busy="true" role="status">
+                    <span className="user-history-loader" />
+                    <strong>Loading your messages</strong>
+                    <p>Your feedback history will be ready in a moment.</p>
+                  </div>
                 ) : feedbackState === "error" ? (
-                  <div className="user-feedback-state"><h3>We couldn’t load your feedback</h3><button type="button" onClick={retryFeedback}>Try again</button></div>
+                  <div className="user-feedback-state" role="alert">
+                    <span className="user-feedback-state-icon is-error"><MessageSquareText size={22} /></span>
+                    <h3>We couldn’t load your feedback</h3>
+                    <p>{feedbackError || "Please check your connection and try again."}</p>
+                    <button type="button" onClick={retryFeedback}><RefreshCw size={14} /> Try again</button>
+                  </div>
                 ) : feedbackItems.length ? (
                   <div className="user-feedback-list">
                     {feedbackItems.map((item) => {
                       const submittedAt = item.createdAt ? new Date(item.createdAt) : null;
                       const repliedAt = item.repliedAt ? new Date(item.repliedAt) : null;
                       const categoryLabel = categoryLabels[item.category] || "Feedback";
+                      const status = item.status || "pending";
+                      const StatusIcon = feedbackStatusIcons[status] || Clock3;
                       return (
-                        <article className="user-feedback-item" key={item._id}>
-                          <div className="user-feedback-item-heading">
+                        <article className={`user-feedback-item is-${status}`} key={item._id}>
+                          <div className="user-feedback-item-top">
                             <span className="user-feedback-category">{categoryLabel}</span>
-                            <span className={`user-feedback-status is-${item.status || "pending"}`}>
-                              {feedbackStatusLabels[item.status] || "Pending"}
+                            <span className={`user-feedback-status is-${status}`}>
+                              <StatusIcon size={13} />
+                              {feedbackStatusLabels[status] || "Pending"}
                             </span>
                           </div>
-                          <p className="user-feedback-message">{item.message}</p>
-                          <small className="user-feedback-date">
-                            Submitted {submittedAt && !Number.isNaN(submittedAt.getTime())
+                          <div className="user-feedback-message">
+                            <span>Your message</span>
+                            <p>{item.message}</p>
+                          </div>
+                          <div className="user-feedback-date">
+                            <CalendarDays size={14} />
+                            <span>Submitted {submittedAt && !Number.isNaN(submittedAt.getTime())
                               ? submittedAt.toLocaleString(undefined, { dateStyle: "medium", timeStyle: "short" })
-                              : "date unavailable"}
-                          </small>
+                              : "date unavailable"}</span>
+                          </div>
                           {item.adminReply && (
                             <div className="user-feedback-reply">
-                              <strong>Reply from our team</strong>
+                              <span className="user-feedback-reply-icon"><MessageSquareReply size={15} /></span>
+                              <div>
+                                <strong>Reply from our team</strong>
                               <p>{item.adminReply}</p>
                               {repliedAt && !Number.isNaN(repliedAt.getTime()) && (
                                 <small>{repliedAt.toLocaleString(undefined, { dateStyle: "medium", timeStyle: "short" })}</small>
                               )}
+                              </div>
                             </div>
                           )}
                         </article>
@@ -344,13 +421,19 @@ function UserDashboard() {
                   </div>
                 ) : (
                   <div className="user-feedback-state">
-                    <span className="user-history-empty-icon"><MessageSquareText size={23} /></span>
+                    <span className="user-feedback-state-icon"><MessageSquareText size={23} /></span>
                     <h3>No feedback yet</h3>
-                    <p>Feedback you submit while signed in will appear here with any replies.</p>
+                    <p>Your feedback, status updates, and team replies will be saved here.</p>
                     <button type="button" onClick={() => navigate("/feedback")}>Share your first message <ArrowUpRight size={15} /></button>
                   </div>
                 )}
               </div>
+              <p className="user-feedback-latest">
+                <CalendarDays size={13} />
+                {latestFeedbackDate && !Number.isNaN(latestFeedbackDate.getTime())
+                  ? `Latest message ${latestFeedbackDate.toLocaleDateString(undefined, { dateStyle: "medium" })}`
+                  : "Your messages are visible only to you and our support team."}
+              </p>
             </section>
           ) : (
             <section className="user-downloads" aria-label="My downloads">
