@@ -25,6 +25,7 @@ import {
   requireLoginForDownload,
   trackDownload,
 } from "../config/downloadTracking.js";
+import { triggerFileDownload } from "../config/triggerFileDownload.js";
 import { showToast } from "../config/toast.js";
 
 const API_BASE = API_USERS;
@@ -576,19 +577,9 @@ function ImageAnalyzer() {
     }
 
     try {
-      const link = document.createElement("a");
-      link.href = downloadUrl;
-      link.download = fileName;
-      document.body.appendChild(link);
-      link.click();
-      link.remove();
+      triggerFileDownload(downloadUrl, fileName, { revokeUrl: revokeDownloadUrl });
       await trackDownload("Image analyzer", fileName, selected.file.size);
-
-      if (revokeDownloadUrl) {
-        window.setTimeout(() => URL.revokeObjectURL(downloadUrl), 1000);
-      }
     } catch (cause) {
-      if (revokeDownloadUrl) URL.revokeObjectURL(downloadUrl);
       setError(
         cause instanceof Error ? cause.message : "Image download failed."
       );

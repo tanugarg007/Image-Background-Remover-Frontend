@@ -13,6 +13,7 @@ import {
 import "./ImageCropper.css";
 import { API_USERS } from "../config/api.js";
 import { releaseGuestDownload, requireLoginForDownload, trackDownload } from "../config/downloadTracking.js";
+import { triggerFileDownload } from "../config/triggerFileDownload.js";
 
 const API_BASE = API_USERS;
 const aspectOptions = [
@@ -592,19 +593,11 @@ function ImageCropper() {
       }
 
       const downloadUrl = URL.createObjectURL(blob);
-      const link = document.createElement("a");
-
-      link.href = downloadUrl;
-      link.download = `${
+      const fileName = `${
         file.name.replace(/\.[^.]+$/, "") || "image"
       }-cropped.png`;
-
-      document.body.appendChild(link);
-      link.click();
-      link.remove();
-      await trackDownload("Image cropper", link.download, blob.size);
-
-      setTimeout(() => URL.revokeObjectURL(downloadUrl), 1000);
+      triggerFileDownload(downloadUrl, fileName, { revokeUrl: true });
+      await trackDownload("Image cropper", fileName, blob.size);
     } catch (cause) {
       setError(
         cause instanceof Error

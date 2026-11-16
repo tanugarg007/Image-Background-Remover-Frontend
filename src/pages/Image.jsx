@@ -20,6 +20,7 @@ import {
   requireLoginForDownload,
   trackDownload,
 } from "../config/downloadTracking.js";
+import { triggerFileDownload } from "../config/triggerFileDownload.js";
 import { claimPendingDownload, savePendingDownload } from "../config/downloadHandoff.js";
 
 
@@ -230,12 +231,7 @@ function Image() {
       if (!(await requireLoginForDownload())) return;
       reservationPending = true;
 
-      const link = document.createElement("a");
-      link.href = processedImage;
-      link.download = fileName;
-      document.body.appendChild(link);
-      link.click();
-      link.remove();
+      triggerFileDownload(processedImage, fileName);
       reservationPending = false;
       setMessage("Your download has started.");
       const trackingRequest = trackDownload("Background removal", fileName, processedBlob.size);

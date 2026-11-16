@@ -15,6 +15,7 @@ import "./DownloadOptions.css";
 import { API_USERS } from "../config/api.js";
 import { showToast } from "../config/toast.js";
 import { releaseGuestDownload, requireLoginForDownload, trackDownload } from "../config/downloadTracking.js";
+import { triggerFileDownload } from "../config/triggerFileDownload.js";
 
 const API_BASE = API_USERS;
 const MAX_FILE_SIZE = 20 * 1024 * 1024;
@@ -171,12 +172,7 @@ function DownloadOptions() {
   const downloadOne = async (entry) => {
     if (!(await requireLoginForDownload())) return;
     try {
-      const link = document.createElement("a");
-      link.href = entry.url;
-      link.download = entry.file.name;
-      document.body.appendChild(link);
-      link.click();
-      link.remove();
+      triggerFileDownload(entry.url, entry.file.name);
       await trackDownload("Downloads", entry.file.name, entry.file.size);
     } catch (err) {
       await releaseGuestDownload();
@@ -230,19 +226,13 @@ function DownloadOptions() {
       const url = URL.createObjectURL(blob);
       urlsRef.current.add(url);
 
-      const link = document.createElement("a");
-      link.href = url;
-      link.download = `images-${Date.now()}.zip`;
-
-      document.body.appendChild(link);
-      link.click();
-      link.remove();
-      await trackDownload("Downloads", link.download, blob.size);
+      const fileName = `images-${Date.now()}.zip`;
+      triggerFileDownload(url, fileName, { revokeUrl: true });
+      await trackDownload("Downloads", fileName, blob.size);
 
       window.setTimeout(() => {
-        URL.revokeObjectURL(url);
         urlsRef.current.delete(url);
-      }, 2000);
+      }, 60000);
 
       // Refresh history after the backend creates the record.
       await fetchHistory();

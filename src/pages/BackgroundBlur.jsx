@@ -10,6 +10,7 @@ import {
 } from "lucide-react";
 import { API_USERS, getSessionStatus, removeBackgroundInBrowser } from "../config/api.js";
 import { releaseGuestDownload, requireLoginForDownload, trackDownload } from "../config/downloadTracking.js";
+import { triggerFileDownload } from "../config/triggerFileDownload.js";
 import { claimPendingDownload, savePendingDownload } from "../config/downloadHandoff.js";
 import "./BackgroundBlur.css";
 
@@ -175,14 +176,9 @@ function BackgroundBlur() {
 
       setStatus(`Download API returned HTTP ${downloadResponse.status}. Starting file download…`);
       const downloadFileUrl = URL.createObjectURL(output);
-      const link = document.createElement("a");
-      link.href = downloadFileUrl;
-      link.download = payload.data.fileName || "background-blur.png";
-      document.body.appendChild(link);
-      link.click();
-      link.remove();
-      await trackDownload("Background Blur", link.download, output.size);
-      window.setTimeout(() => URL.revokeObjectURL(downloadFileUrl), 1000);
+      const fileName = payload.data.fileName || "background-blur.png";
+      triggerFileDownload(downloadFileUrl, fileName, { revokeUrl: true });
+      await trackDownload("Background Blur", fileName, output.size);
     } catch (downloadError) {
       await releaseGuestDownload();
       setError(downloadError instanceof Error

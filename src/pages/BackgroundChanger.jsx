@@ -14,6 +14,7 @@ import {
 import "./BackgroundChanger.css";
 import { API_USERS, removeBackgroundInBrowser } from "../config/api.js";
 import { releaseGuestDownload, requireLoginForDownload, trackDownload } from "../config/downloadTracking.js";
+import { triggerFileDownload } from "../config/triggerFileDownload.js";
 
 const API_BASE = API_USERS;
 
@@ -193,8 +194,6 @@ const downloadResult = async () => {
   setError("");
   setMessage("");
 
-  let downloadUrl = "";
-
   try {
     // Load transparent cutout
     const cutout = new window.Image();
@@ -291,26 +290,12 @@ if (savedImage.size === 0) {
 }
 
 // Force the downloaded file to use PNG format
-downloadUrl = URL.createObjectURL(savedImage);
-
-const link = document.createElement("a");
-link.href = downloadUrl;
-
+const downloadUrl = URL.createObjectURL(savedImage);
 const originalName =
   file.name.replace(/\.[^.]+$/, "") || "image";
-
-link.download = `${originalName}-background.png`;
-document.body.appendChild(link);
-link.click();
-link.remove();
-await trackDownload("Background changer", link.download, savedImage.size);
-
-window.setTimeout(() => {
-  if (downloadUrl) {
-    URL.revokeObjectURL(downloadUrl);
-    downloadUrl = "";
-  }
-}, 60000);
+const fileName = `${originalName}-background.png`;
+triggerFileDownload(downloadUrl, fileName, { revokeUrl: true });
+await trackDownload("Background changer", fileName, savedImage.size);
 
   }
   catch (error) {

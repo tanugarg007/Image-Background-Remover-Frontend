@@ -5,6 +5,7 @@ import { Upload, Download } from "lucide-react";
 import "./compressor.css";
 import { API_USERS } from "../config/api.js";
 import { releaseGuestDownload, requireLoginForDownload, trackDownload } from "../config/downloadTracking.js";
+import { triggerFileDownload } from "../config/triggerFileDownload.js";
 
 const API_BASE = API_USERS;
 function ImageCompressor() {
@@ -256,8 +257,6 @@ function ImageCompressor() {
     setDownloading(true);
     setError("");
 
-    let downloadUrl = "";
-
     try {
       const response = await fetch(
         `${API_BASE}/downloadimage/${encodeURIComponent(compressionId)}`,
@@ -273,7 +272,7 @@ function ImageCompressor() {
       }
 
       const blob = await response.blob();
-      downloadUrl = URL.createObjectURL(blob);
+      const downloadUrl = URL.createObjectURL(blob);
 
       const baseName = original.name.replace(/\.[^.]+$/, "");
       const extension =
@@ -283,14 +282,9 @@ function ImageCompressor() {
             ? ".webp"
             : ".jpg";
 
-      const link = document.createElement("a");
-      link.href = downloadUrl;
-      link.download = `compressed-${baseName}${extension}`;
-
-      document.body.appendChild(link);
-      link.click();
-      link.remove();
-      await trackDownload("Image compressor", link.download, blob.size);
+      const fileName = `compressed-${baseName}${extension}`;
+      triggerFileDownload(downloadUrl, fileName, { revokeUrl: true });
+      await trackDownload("Image compressor", fileName, blob.size);
     } catch (err) {
       await releaseGuestDownload();
       console.error("Download error:", err);
@@ -299,12 +293,6 @@ function ImageCompressor() {
         err instanceof Error ? err.message : "Download failed."
       );
     } finally {
-      if (downloadUrl) {
-        window.setTimeout(() => {
-          URL.revokeObjectURL(downloadUrl);
-        }, 1000);
-      }
-
       downloadRequestRef.current = false;
       setDownloading(false);
     }

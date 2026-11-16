@@ -4,6 +4,7 @@ import "./ImageQualityControls.css";
 import { API_USERS } from "../config/api.js";
 import { showToast } from "../config/toast.js";
 import { releaseGuestDownload, requireLoginForDownload, trackDownload } from "../config/downloadTracking.js";
+import { triggerFileDownload } from "../config/triggerFileDownload.js";
 
 const API_BASE = API_USERS;
 const formats = {
@@ -483,12 +484,7 @@ function ImageQualityControls() {
   const downloadOptimizedImage = async () => {
     if (!outputUrl || !(await requireLoginForDownload())) return;
     try {
-      const link = document.createElement("a");
-      link.href = outputUrl;
-      link.download = downloadName;
-      document.body.appendChild(link);
-      link.click();
-      link.remove();
+      triggerFileDownload(outputUrl, downloadName);
       await trackDownload("Quality controls", downloadName, outputBlob?.size);
     } catch (err) {
       await releaseGuestDownload();
@@ -536,17 +532,10 @@ function ImageQualityControls() {
         outputFormat === "JPG"
           ? "jpg"
           : outputFormat.toLowerCase();
+      const fileName = `${getFileBaseName(imageName)}-optimized.${extension}`;
+      triggerFileDownload(url, fileName, { revokeUrl: true });
+      await trackDownload("Quality controls", fileName, blob.size);
 
-      const link = document.createElement("a");
-      link.href = url;
-      link.download = `${getFileBaseName(imageName)}-optimized.${extension}`;
-
-      document.body.appendChild(link);
-      link.click();
-      link.remove();
-      await trackDownload("Quality controls", link.download, blob.size);
-
-      setTimeout(() => URL.revokeObjectURL(url), 1000);
       setMessage("Download started.");
     } catch (err) {
       await releaseGuestDownload();

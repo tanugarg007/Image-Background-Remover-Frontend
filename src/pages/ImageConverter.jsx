@@ -11,6 +11,7 @@ import {
 import "./ImageConverter.css";
 import { API_USERS } from "../config/api.js";
 import { releaseGuestDownload, requireLoginForDownload, trackDownload } from "../config/downloadTracking.js";
+import { triggerFileDownload } from "../config/triggerFileDownload.js";
 
 const API_BASE = API_USERS;
 
@@ -237,21 +238,12 @@ function ImageConverter() {
       }
 
       const url = URL.createObjectURL(blob);
-      const link = document.createElement("a");
-
       const name = original
         ? original.name.replace(/\.[^/.]+$/, "")
         : "converted-image";
-
-      link.href = url;
-      link.download = `${name}.${format.toLowerCase()}`;
-
-      document.body.appendChild(link);
-      link.click();
-      link.remove();
-      await trackDownload("Image converter", link.download, blob.size);
-
-      setTimeout(() => URL.revokeObjectURL(url), 1000);
+      const fileName = `${name}.${format.toLowerCase()}`;
+      triggerFileDownload(url, fileName, { revokeUrl: true });
+      await trackDownload("Image converter", fileName, blob.size);
     } catch (err) {
       setError(
         err instanceof Error ? err.message : "Download failed."

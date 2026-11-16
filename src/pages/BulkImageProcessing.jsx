@@ -19,6 +19,7 @@ import "./BulkImageProcessing.css";
 import { API_USERS } from "../config/api.js";
 import { showToast } from "../config/toast.js";
 import { releaseGuestDownload, requireLoginForDownload, trackDownload } from "../config/downloadTracking.js";
+import { triggerFileDownload } from "../config/triggerFileDownload.js";
 
 const API_BASE = API_USERS;
   
@@ -604,21 +605,11 @@ function BulkImageProcessing() {
       }
 
       const downloadUrl = URL.createObjectURL(blob);
-      const link = document.createElement("a");
-
-      link.href = downloadUrl;
-      link.download = `${getBaseName(
+      const fileName = `${getBaseName(
         item.file.name
       )}.${getExtension(item.outputFormat)}`;
-
-      document.body.appendChild(link);
-      link.click();
-      link.remove();
-      await trackDownload("Bulk image processing", link.download, blob.size);
-
-      setTimeout(() => {
-        URL.revokeObjectURL(downloadUrl);
-      }, 60000);
+      triggerFileDownload(downloadUrl, fileName, { revokeUrl: true });
+      await trackDownload("Bulk image processing", fileName, blob.size);
     } catch (err) {
       await releaseGuestDownload();
       setApiError(
@@ -660,15 +651,9 @@ function BulkImageProcessing() {
 
       const zipBlob = await zip.generateAsync({ type: "blob" });
       const downloadUrl = URL.createObjectURL(zipBlob);
-      const link = document.createElement("a");
-      link.href = downloadUrl;
-      link.download = "bulk-processed-images.zip";
-
-      document.body.appendChild(link);
-      link.click();
-      link.remove();
-      await trackDownload("Bulk image processing", link.download, zipBlob.size);
-      setTimeout(() => URL.revokeObjectURL(downloadUrl), 60000);
+      const fileName = "bulk-processed-images.zip";
+      triggerFileDownload(downloadUrl, fileName, { revokeUrl: true });
+      await trackDownload("Bulk image processing", fileName, zipBlob.size);
     } catch (err) {
       await releaseGuestDownload();
       setApiError(
