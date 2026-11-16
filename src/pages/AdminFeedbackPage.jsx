@@ -17,6 +17,12 @@ const categoryLabels = {
   other: "Other",
 };
 
+const statusLabels = {
+  pending: "Pending",
+  reviewed: "Reviewed",
+  resolved: "Resolved",
+};
+
 function AdminFeedbackPage({ reloadKey }) {
   const [feedback, setFeedback] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -24,6 +30,8 @@ function AdminFeedbackPage({ reloadKey }) {
   const [replyingId, setReplyingId] = useState("");
   const [replyDraft, setReplyDraft] = useState("");
   const [savingReplyId, setSavingReplyId] = useState("");
+  const [savingStatusId, setSavingStatusId] = useState("");
+  const [statusDrafts, setStatusDrafts] = useState({});
   const [feedbackToDelete, setFeedbackToDelete] = useState(null);
   const [deletingId, setDeletingId] = useState("");
 
@@ -84,6 +92,38 @@ function AdminFeedbackPage({ reloadKey }) {
     }
   };
 
+  const updateStatus = async (id, status) => {
+    if (savingStatusId) return;
+    setSavingStatusId(id);
+    setStatusDrafts((current) => ({ ...current, [id]: status }));
+    setError("");
+    try {
+      const response = await fetch(`${API_USERS}/admin/feedback/${encodeURIComponent(id)}/status`, {
+        method: "PATCH",
+        credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ status }),
+      });
+      const result = await response.json().catch(() => ({}));
+      if (!response.ok) throw new Error(result.message || "Could not update feedback status.");
+      setFeedback((current) => current.map((item) => item._id === id ? result.data : item));
+      setStatusDrafts((current) => {
+        const next = { ...current };
+        delete next[id];
+        return next;
+      });
+    } catch (requestError) {
+      setStatusDrafts((current) => {
+        const next = { ...current };
+        delete next[id];
+        return next;
+      });
+      setError(requestError instanceof Error ? requestError.message : "Could not update feedback status.");
+    } finally {
+      setSavingStatusId("");
+    }
+  };
+
   const deleteFeedback = async () => {
     if (!feedbackToDelete || deletingId) return;
     const item = feedbackToDelete;
@@ -133,16 +173,35 @@ function AdminFeedbackPage({ reloadKey }) {
                 <span className={`admin-feedback-category is-${item.category}`}>
                   {categoryLabels[item.category] || "Feedback"}
                 </span>
-                <time dateTime={item.createdAt}>
-                  <Clock3 size={13} />
-                  {item.createdAt ? new Date(item.createdAt).toLocaleString() : "—"}
-                </time>
+                <div className="admin-feedback-item-meta">
+                  <span className={`admin-feedback-status is-${item.status || "pending"}`}>
+                    {statusLabels[item.status] || "Pending"}
+                  </span>
+                  <time dateTime={item.createdAt}>
+                    <Clock3 size={13} />
+                    {item.createdAt ? new Date(item.createdAt).toLocaleString() : "—"}
+                  </time>
+                </div>
               </div>
               <p className="admin-feedback-message">{item.message}</p>
               <div className="admin-feedback-author">
                 <strong>{item.name || "Anonymous user"}</strong>
                 {item.email && <a href={`mailto:${item.email}`}>{item.email}</a>}
               </div>
+              <label className="admin-feedback-status-control">
+                <span>Feedback status</span>
+                <select
+                  value={statusDrafts[item._id] || item.status || "pending"}
+                  onChange={(event) => void updateStatus(item._id, event.target.value)}
+                  disabled={Boolean(savingStatusId) || Boolean(deletingId)}
+                  aria-label={`Set status for feedback from ${item.name || "user"}`}
+                >
+                  <option value="pending">Pending</option>
+                  <option value="reviewed">Reviewed</option>
+                  <option value="resolved">Resolved</option>
+                </select>
+                {savingStatusId === item._id && <small>Saving…</small>}
+              </label>
               {item.adminReply && replyingId !== item._id && (
                 <aside className="admin-feedback-saved-reply">
                   <span><MessageSquareReply size={14} /> SUPERADMIN REPLY</span>

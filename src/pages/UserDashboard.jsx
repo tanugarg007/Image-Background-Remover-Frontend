@@ -36,6 +36,12 @@ const toolIcons = {
   SlidersHorizontal,
 };
 
+const feedbackStatusLabels = {
+  pending: "Pending",
+  reviewed: "Reviewed",
+  resolved: "Resolved",
+};
+
 function UserDashboard() {
   const navigate = useNavigate();
   const location = useLocation();
@@ -313,8 +319,8 @@ function UserDashboard() {
                         <article className="user-feedback-item" key={item._id}>
                           <div className="user-feedback-item-heading">
                             <span className="user-feedback-category">{categoryLabel}</span>
-                            <span className={`user-feedback-status ${item.adminReply ? "is-answered" : ""}`}>
-                              {item.adminReply ? "Answered" : "Under review"}
+                            <span className={`user-feedback-status is-${item.status || "pending"}`}>
+                              {feedbackStatusLabels[item.status] || "Pending"}
                             </span>
                           </div>
                           <p className="user-feedback-message">{item.message}</p>

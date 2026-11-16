@@ -522,7 +522,13 @@
   background: #fff9ec;
 }
 
-.user-feedback-status.is-answered {
+.user-feedback-status.is-reviewed {
+  border-color: #dcdcf4;
+  color: #645aa5;
+  background: #f5f4ff;
+}
+
+.user-feedback-status.is-resolved {
   border-color: #d8eddf;
   color: #43835a;
   background: #f0faf3;
