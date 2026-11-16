@@ -459,6 +459,145 @@
   font-size: 12px;
 }
 
+.user-feedback-section {
+  display: grid;
+  gap: 16px;
+}
+
+.user-feedback-new {
+  min-height: 36px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  padding: 0 11px;
+  border: 1px solid #e3ddf7;
+  border-radius: 9px;
+  color: #6553c7;
+  background: #fff;
+  font: 700 11px "DM Sans", sans-serif;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.user-feedback-new:hover {
+  border-color: #c8bdf5;
+  background: #faf9ff;
+}
+
+.user-feedback-list {
+  padding: 0 22px;
+}
+
+.user-feedback-item {
+  padding: 18px 4px;
+  border-top: 1px solid #eff0f5;
+}
+
+.user-feedback-item:first-child {
+  border-top: 0;
+}
+
+.user-feedback-item-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.user-feedback-category,
+.user-feedback-status {
+  padding: 6px 9px;
+  border: 1px solid #e8e3fa;
+  border-radius: 999px;
+  color: #6958c2;
+  background: #f6f4ff;
+  font-size: 10px;
+  font-weight: 700;
+}
+
+.user-feedback-status {
+  border-color: #f0e5ca;
+  color: #9c7435;
+  background: #fff9ec;
+}
+
+.user-feedback-status.is-answered {
+  border-color: #d8eddf;
+  color: #43835a;
+  background: #f0faf3;
+}
+
+.user-feedback-message,
+.user-feedback-reply p {
+  margin: 13px 0 8px;
+  color: #414b61;
+  font-size: 13px;
+  line-height: 1.65;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.user-feedback-date,
+.user-feedback-reply small {
+  color: #9299a9;
+  font-size: 10px;
+}
+
+.user-feedback-reply {
+  margin-top: 16px;
+  padding: 14px 16px;
+  border: 1px solid #e5e0f6;
+  border-radius: 12px;
+  background: #faf9ff;
+}
+
+.user-feedback-reply strong {
+  color: #6553c7;
+  font-size: 11px;
+}
+
+.user-feedback-reply p {
+  margin: 8px 0;
+  font-size: 12px;
+}
+
+.user-feedback-state {
+  min-height: 215px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 28px;
+  text-align: center;
+}
+
+.user-feedback-state h3 {
+  margin: 13px 0 0;
+  color: #354057;
+  font: 750 16px Manrope, sans-serif;
+}
+
+.user-feedback-state p {
+  margin: 8px 0 0;
+  color: #8992a4;
+  font-size: 12px;
+}
+
+.user-feedback-state button {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  margin-top: 18px;
+  padding: 9px 13px;
+  border: 1px solid #e3ddf7;
+  border-radius: 10px;
+  color: #6553c7;
+  background: #fff;
+  font: 700 11px "DM Sans", sans-serif;
+  cursor: pointer;
+}
+
 @media (max-width: 760px) {
   .user-topbar {
     flex-wrap: wrap;
