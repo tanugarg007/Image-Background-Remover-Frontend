@@ -1,7 +1,13 @@
 import { useState } from "react";
-import { MessageSquareText, Send } from "lucide-react";
+import { CheckCircle2, LoaderCircle, MessageSquareText, Send } from "lucide-react";
 import { API_USERS } from "../config/api.js";
 import "./FeedbackPage.css";
+
+const categoryLabels = {
+  suggestion: "Suggestion",
+  bug: "Problem report",
+  other: "Other feedback",
+};
 
 function FeedbackPage() {
   const [category, setCategory] = useState("suggestion");
@@ -10,14 +16,13 @@ function FeedbackPage() {
   const [email, setEmail] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState("");
-  const [success, setSuccess] = useState("");
+  const [submittedFeedback, setSubmittedFeedback] = useState(null);
 
   const submit = async (event) => {
     event.preventDefault();
     if (submitting) return;
     setSubmitting(true);
     setError("");
-    setSuccess("");
 
     try {
       const response = await fetch(`${API_USERS}/feedback`, {
@@ -32,7 +37,7 @@ function FeedbackPage() {
       }
 
       setMessage("");
-      setSuccess(result.message || "Thank you for your feedback.");
+      setSubmittedFeedback({ name: name.trim(), email: email.trim(), category });
     } catch (requestError) {
       setError(requestError instanceof Error
         ? requestError.message
@@ -49,9 +54,24 @@ function FeedbackPage() {
           <span className="feedback-icon"><MessageSquareText size={22} /></span>
           <span className="feedback-eyebrow">YOUR VOICE MATTERS</span>
           <h1>Share your <em>feedback</em></h1>
-          <p>Tell us what is working well or what we can improve. Your feedback goes directly to our superadmin.</p>
+          <p>Thoughtful feedback helps us build a better experience. Your message is delivered directly to our superadmin.</p>
         </div>
 
+        {submittedFeedback ? (
+          <section className="feedback-success" role="status" aria-live="polite">
+            <span className="feedback-success-icon"><CheckCircle2 size={30} /></span>
+            <span className="feedback-success-eyebrow">MESSAGE RECEIVED</span>
+            <h2>Thank you, {submittedFeedback.name}.</h2>
+            <p>Your feedback has been submitted successfully. Our team will review it and can follow up at <strong>{submittedFeedback.email}</strong>.</p>
+            <div className="feedback-receipt">
+              <span>Feedback type</span>
+              <strong>{categoryLabels[submittedFeedback.category]}</strong>
+            </div>
+            <button type="button" onClick={() => setSubmittedFeedback(null)}>
+              Send another message <Send size={15} />
+            </button>
+          </section>
+        ) : (
         <form className="feedback-form" onSubmit={submit}>
           <label>
             <span>Feedback type</span>
@@ -77,30 +97,37 @@ function FeedbackPage() {
 
           <div className="feedback-contact">
             <label>
-              <span>Name <small>optional</small></span>
-              <input value={name} onChange={(event) => setName(event.target.value)} maxLength={80} />
+              <span>Name <b aria-hidden="true">*</b></span>
+              <input
+                value={name}
+                onChange={(event) => setName(event.target.value)}
+                maxLength={80}
+                autoComplete="name"
+                required
+              />
             </label>
             <label>
-              <span>Email <small>optional</small></span>
+              <span>Email <b aria-hidden="true">*</b></span>
               <input
                 type="email"
                 value={email}
                 onChange={(event) => setEmail(event.target.value)}
                 maxLength={254}
                 autoComplete="email"
+                required
               />
             </label>
           </div>
 
           {error && <p className="feedback-message is-error" role="alert">{error}</p>}
-          {success && <p className="feedback-message is-success" role="status">{success}</p>}
 
           <button type="submit" disabled={submitting || !message.trim()}>
-            <Send size={16} />
-            {submitting ? "Sending…" : "Send feedback"}
+            {submitting ? <LoaderCircle className="feedback-spinner" size={16} /> : <Send size={16} />}
+            {submitting ? "Submitting securely…" : "Submit feedback"}
           </button>
-          <p className="feedback-privacy">You can send feedback without signing in. If you are signed in, your account name and email are attached automatically.</p>
+          <p className="feedback-privacy">Name and email are required so our team can identify your message and follow up if needed. Your feedback is visible to the superadmin.</p>
         </form>
+        )}
       </section>
     </main>
   );
