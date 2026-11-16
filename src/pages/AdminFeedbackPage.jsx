@@ -38,6 +38,8 @@ function AdminFeedbackPage({ reloadKey }) {
   const [activeFilter, setActiveFilter] = useState("all");
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+  const [emailNotice, setEmailNotice] = useState("");
+  const [emailNoticeWarning, setEmailNoticeWarning] = useState(false);
   const [replyingId, setReplyingId] = useState("");
   const [replyDraft, setReplyDraft] = useState("");
   const [savingReplyId, setSavingReplyId] = useState("");
@@ -84,6 +86,7 @@ function AdminFeedbackPage({ reloadKey }) {
 
   const openReply = (item) => {
     setError("");
+    setEmailNotice("");
     setReplyingId(item._id);
     setReplyDraft(item.adminReply || "");
   };
@@ -93,6 +96,7 @@ function AdminFeedbackPage({ reloadKey }) {
     if (!replyDraft.trim() || savingReplyId) return;
     setSavingReplyId(id);
     setError("");
+    setEmailNotice("");
     try {
       const response = await fetch(`${API_USERS}/admin/feedback/${encodeURIComponent(id)}/reply`, {
         method: "PATCH",
@@ -103,6 +107,12 @@ function AdminFeedbackPage({ reloadKey }) {
       const result = await response.json().catch(() => ({}));
       if (!response.ok) throw new Error(result.message || "Could not save the reply.");
       setFeedback((current) => current.map((item) => item._id === id ? result.data : item));
+      setEmailNoticeWarning(result.emailSent === false);
+      setEmailNotice(result.emailSent === false
+        ? result.message || "Reply saved, but the email could not be sent."
+        : result.emailSent === true
+          ? "Reply saved and emailed to the user."
+          : "Reply saved.");
       setReplyingId("");
       setReplyDraft("");
     } catch (requestError) {
@@ -185,6 +195,11 @@ function AdminFeedbackPage({ reloadKey }) {
       </header>
 
       {error && <p className="admin-error admin-feedback-error" role="alert">{error}</p>}
+      {emailNotice && (
+        <p className={`admin-feedback-email-notice ${emailNoticeWarning ? "is-warning" : ""}`} role="status">
+          {emailNotice}
+        </p>
+      )}
       {loading ? (
         <div className="admin-feedback-loading" role="status" aria-live="polite">
           <RefreshCw size={18} className="is-spinning" />

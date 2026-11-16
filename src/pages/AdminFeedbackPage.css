@@ -96,6 +96,23 @@
   font-size: 11px;
 }
 
+.admin-feedback-email-notice {
+  margin: 16px 22px 0;
+  padding: 11px 13px;
+  border: 1px solid #d9ebdf;
+  border-radius: 10px;
+  color: #38764d;
+  background: #f2faf4;
+  font-size: 11px;
+  line-height: 1.5;
+}
+
+.admin-feedback-email-notice.is-warning {
+  border-color: #f0dfc2;
+  color: #8d672a;
+  background: #fff9ee;
+}
+
 .admin-feedback-stats {
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
