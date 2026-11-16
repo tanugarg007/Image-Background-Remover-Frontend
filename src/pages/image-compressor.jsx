@@ -143,12 +143,8 @@ function ImageCompressor() {
 
     const dimension = Number(maxDimension);
 
-    if (
-      !Number.isInteger(dimension) ||
-      dimension < 256 ||
-      dimension > 8192
-    ) {
-      setError("Maximum dimension must be between 256 and 8192.");
+    if (!Number.isSafeInteger(dimension) || dimension < 1) {
+      setError("Maximum dimension must be a positive whole number of pixels.");
       return;
     }
 
@@ -161,7 +157,6 @@ function ImageCompressor() {
     try {
       // Compress locally in the browser.
       const resizedImage = await imageCompression(original, {
-        maxSizeMB: 10,
         maxWidthOrHeight: dimension,
         initialQuality: quality / 100,
         fileType: "image/jpeg",
@@ -332,7 +327,7 @@ function ImageCompressor() {
       <div className="compressor-settings">
         <label className="compressor-setting" htmlFor="compressor-quality">
           <span>
-            Quality <output>{quality}%</output>
+            JPEG quality <output>{quality}%</output>
           </span>
 
           <input
@@ -346,13 +341,14 @@ function ImageCompressor() {
           />
 
           <span className="compressor-setting-hint">
-            Lower quality may reduce file size. Compress again to apply.
+            This percentage is sent to the JPEG encoder when you compress.
+            Higher quality usually keeps more detail and creates a larger file.
           </span>
           {compressed && (
             <span className={`compressor-quality-state${appliedSettings?.quality === quality ? " is-current" : ""}`}>
               {appliedSettings?.quality === quality
-                ? `Applied to preview: ${appliedSettings.quality}%`
-                : `Preview still uses ${appliedSettings?.quality}%. Click Compress Again to apply ${quality}%.`}
+                ? `JPEG encoder setting applied to preview: ${appliedSettings.quality}%`
+                : `Preview uses ${appliedSettings?.quality}% JPEG quality. Click Compress Again to apply ${quality}%.`}
             </span>
           )}
         </label>
@@ -366,14 +362,13 @@ function ImageCompressor() {
           <input
             id="compressor-dimension"
             type="number"
-            min="256"
-            max="8192"
+            min="1"
             value={maxDimension}
             onChange={(event) => setMaxDimension(event.target.value)}
           />
 
           <span className="compressor-setting-hint">
-            Maximum width or height. Original proportions are maintained.
+            Set any positive pixel limit for the longer edge. The original proportions are maintained; images are not enlarged, and your browser may limit very large outputs.
           </span>
         </label>
 
@@ -465,7 +460,7 @@ function ImageCompressor() {
           {compressed && (
             <div className="compressor-result-summary" aria-live="polite">
               <strong>{savedPercent >= 0 ? "Size reduced" : "Size increased"}: {Math.abs(savedPercent).toFixed(1)}%</strong>
-              <span>Quality used: {appliedSettings?.quality}%</span>
+              <span>JPEG quality setting used: {appliedSettings?.quality}%</span>
               <span>File size: {formatSize(original.size)} → {formatSize(compressed.size)}</span>
               {!settingsAreCurrent && <span>Settings changed. Compress again to apply them.</span>}
             </div>
