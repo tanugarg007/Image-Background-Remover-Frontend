@@ -1,5 +1,6 @@
-import { useState } from "react";
-import { CheckCircle2, LoaderCircle, MessageSquareText, Send } from "lucide-react";
+import { useEffect, useState } from "react";
+import { Link } from "react-router-dom";
+import { ArrowRight, CheckCircle2, LoaderCircle, LockKeyhole, MessageSquareText, Send } from "lucide-react";
 import { API_USERS } from "../config/api.js";
 import "./FeedbackPage.css";
 
@@ -10,6 +11,9 @@ const categoryLabels = {
 };
 
 function FeedbackPage() {
+  const [sessionState, setSessionState] = useState("checking");
+  const [sessionError, setSessionError] = useState("");
+  const [sessionCheck, setSessionCheck] = useState(0);
   const [category, setCategory] = useState("suggestion");
   const [message, setMessage] = useState("");
   const [name, setName] = useState("");
@@ -17,6 +21,32 @@ function FeedbackPage() {
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState("");
   const [submittedFeedback, setSubmittedFeedback] = useState(null);
+
+  useEffect(() => {
+    let active = true;
+
+    const checkSession = async () => {
+      try {
+        const response = await fetch(`${API_USERS}/session-status`, {
+          credentials: "include",
+          cache: "no-store",
+        });
+        const result = await response.json().catch(() => ({}));
+        if (!response.ok) throw new Error(result.message || "Could not verify your sign-in.");
+        if (active) setSessionState(result.authenticated === true ? "signed-in" : "signed-out");
+      } catch (requestError) {
+        if (active) {
+          setSessionState("error");
+          setSessionError(requestError instanceof Error
+            ? requestError.message
+            : "Could not verify your sign-in.");
+        }
+      }
+    };
+
+    void checkSession();
+    return () => { active = false; };
+  }, [sessionCheck]);
 
   const submit = async (event) => {
     event.preventDefault();
@@ -32,6 +62,10 @@ function FeedbackPage() {
         body: JSON.stringify({ category, message, name, email }),
       });
       const result = await response.json().catch(() => ({}));
+      if (response.status === 401) {
+        setSessionState("signed-out");
+        return;
+      }
       if (!response.ok) {
         throw new Error(result.message || "Could not submit your feedback.");
       }
@@ -57,7 +91,36 @@ function FeedbackPage() {
           <p>Thoughtful feedback helps us build a better experience. Your message is delivered directly to our superadmin.</p>
         </div>
 
-        {submittedFeedback ? (
+        {sessionState === "checking" ? (
+          <div className="feedback-access-state" role="status" aria-live="polite">
+            <LoaderCircle className="feedback-spinner" size={22} />
+            <span>Checking your sign-in…</span>
+          </div>
+        ) : sessionState === "error" ? (
+          <div className="feedback-access-state is-error" role="alert">
+            <p>{sessionError}</p>
+            <button type="button" onClick={() => {
+              setSessionError("");
+              setSessionState("checking");
+              setSessionCheck((check) => check + 1);
+            }}>
+              Try again <ArrowRight size={15} />
+            </button>
+          </div>
+        ) : sessionState === "signed-out" ? (
+          <div className="feedback-login-gate">
+            <span className="feedback-login-icon"><LockKeyhole size={23} /></span>
+            <span className="feedback-success-eyebrow">MEMBER ACCESS</span>
+            <h2>Sign in to share feedback</h2>
+            <p>Feedback is available to signed-in users. Sign in to continue and send your message to our superadmin.</p>
+            <Link to="/login?returnTo=%2Ffeedback">
+              Sign in to continue <ArrowRight size={16} />
+            </Link>
+            <span className="feedback-create-account">
+              New here? <Link to="/register">Create an account</Link>
+            </span>
+          </div>
+        ) : submittedFeedback ? (
           <section className="feedback-success" role="status" aria-live="polite">
             <span className="feedback-success-icon"><CheckCircle2 size={30} /></span>
             <span className="feedback-success-eyebrow">MESSAGE RECEIVED</span>

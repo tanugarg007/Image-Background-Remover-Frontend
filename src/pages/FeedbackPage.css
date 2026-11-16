@@ -312,6 +312,126 @@
   background: #f0edff;
 }
 
+.feedback-access-state {
+  min-height: 220px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  margin-top: 30px;
+  color: #777f91;
+  font-size: 12px;
+  text-align: center;
+}
+
+.feedback-access-state.is-error {
+  color: #a1485c;
+}
+
+.feedback-access-state > p {
+  margin: 0;
+  line-height: 1.6;
+}
+
+.feedback-access-state > button {
+  min-height: 38px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 0 14px;
+  border: 1px solid #ded9fa;
+  border-radius: 9px;
+  color: #6552c5;
+  background: #f8f6ff;
+  font: inherit;
+  font-size: 11px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.feedback-login-gate {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  margin-top: 32px;
+  padding: 32px 22px 10px;
+  border: 1px solid #e8e6f3;
+  border-radius: 18px;
+  background:
+    radial-gradient(ellipse at 50% 0, #f1efff 0, transparent 62%),
+    #fff;
+  text-align: center;
+}
+
+.feedback-login-icon {
+  width: 60px;
+  height: 60px;
+  display: grid;
+  place-items: center;
+  margin-bottom: 17px;
+  border: 1px solid #e1dcfa;
+  border-radius: 18px;
+  color: #705bd4;
+  background: linear-gradient(145deg, #f5f2ff, #ebe7ff);
+  box-shadow: 0 8px 20px #7965d11c;
+}
+
+.feedback-login-gate h2 {
+  margin: 10px 0 8px;
+  color: #252b3e;
+  font: 800 clamp(21px, 4vw, 27px) Manrope, sans-serif;
+  letter-spacing: -.6px;
+}
+
+.feedback-login-gate > p {
+  max-width: 430px;
+  margin: 0;
+  color: #727b8e;
+  font-size: 12px;
+  line-height: 1.7;
+}
+
+.feedback-login-gate > a {
+  min-height: 45px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 9px;
+  margin-top: 21px;
+  padding: 0 18px;
+  border-radius: 10px;
+  color: #fff;
+  background: linear-gradient(105deg, #6350db, #8066e7);
+  box-shadow: 0 9px 20px #6552d633;
+  font-size: 12px;
+  font-weight: 700;
+  text-decoration: none;
+  transition: transform .18s ease, box-shadow .18s ease;
+}
+
+.feedback-login-gate > a:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 12px 24px #6552d642;
+}
+
+.feedback-create-account {
+  margin-top: 15px;
+  color: #858da0;
+  font-size: 10px;
+}
+
+.feedback-create-account a {
+  color: #6552c5;
+  font-weight: 700;
+  text-decoration: none;
+}
+
+.feedback-create-account a:hover {
+  text-decoration: underline;
+}
+
 @keyframes feedback-arrive {
   from { opacity: 0; transform: translateY(8px); }
   to { opacity: 1; transform: translateY(0); }
