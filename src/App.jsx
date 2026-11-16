@@ -4,6 +4,7 @@ import { useLocation } from "react-router-dom";
 import Navbar, { toolCatalog } from "./pages/Navbar.jsx";
 import { API_USERS } from "./config/api.js";
 import GuestDownloadStatus from "./components/GuestDownloadStatus.jsx";
+import FeedbackPage from "./pages/FeedbackPage.jsx";
 
 function App() {
   const [showAllTools, setShowAllTools] = useState(false);
@@ -54,6 +55,7 @@ function App() {
   const requestedId = location.pathname !== "/"
     ? location.pathname.replace(/^\/+|\/+$/g, "")
     : activeHash.slice(1);
+  const isFeedbackRoute = requestedId === "feedback";
   const requestedTool = availableTools.find((tool) => tool.route.slice(1) === requestedId);
   // When a tool is selected from the navigation, render that tool on its own.
   // Keeping the home page's other tools mounted above it makes every tool
@@ -75,7 +77,9 @@ function App() {
         tools={availableTools}
         onToggleTools={() => setShowAllTools((shown) => !shown)}
       />
-      {renderedTools.map(({ route, Component }) => (
+      {isFeedbackRoute ? (
+        <FeedbackPage />
+      ) : renderedTools.map(({ route, Component }) => (
           <section key={route} id={route.slice(1)} className="app-section">
             <Component />
           </section>

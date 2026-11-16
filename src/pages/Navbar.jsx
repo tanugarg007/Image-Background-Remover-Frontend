@@ -110,6 +110,7 @@ function Navbar({ showAllTools, onToggleTools, tools = toolCatalog }) {
         {visibleToolLinks.map((tool) => (
           <a key={tool.route} href={tool.route}>{tool.navLabel}</a>
         ))}
+        <Link to="/feedback">Feedback</Link>
         {tools.length > 4 && (
           <button
             className="nav-tools-toggle"

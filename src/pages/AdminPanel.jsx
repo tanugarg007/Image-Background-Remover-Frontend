@@ -6,6 +6,7 @@ import AdminSidebar from "./AdminSidebar.jsx";
 import UsersPage from "./UsersPage.jsx";
 import RolesPermissionsPage from "./RolesPermissionsPage.jsx";
 import AdminDownloadsPage from "./AdminDownloadsPage.jsx";
+import AdminFeedbackPage from "./AdminFeedbackPage.jsx";
 import AdminFinancePage from "./AdminFinancePage.jsx";
 import UserAccountForm from "./UserAccountForm.jsx";
 import AdminImageToolsPage from "./AdminImageToolsPage.jsx";
@@ -41,7 +42,7 @@ function AdminPanel({ superAdmin = false }) {
   const requestedSection =
     location.pathname.slice(adminBasePath.length).split("/").filter(Boolean)[0] ||
     "users";
-  const validSections = ["users", "roles", "downloads", "finance", "image-tools"];
+  const validSections = ["users", "roles", "downloads", "finance", "image-tools", ...(superAdmin ? ["feedback"] : [])];
   const activeSection =
     validSections.includes(requestedSection) &&
     (requestedSection !== "finance" || superAdmin)
@@ -282,7 +283,7 @@ if (superAdmin ? !isSuperAdmin : !(isAdmin || isSuperAdmin)) {
 
       <main className="admin-main">
         <header className="admin-topbar">
-          <div className="breadcrumb"><span>Console</span><span>/</span><strong>{activeSection === "image-tools" ? "Image Tools" : activeSection === "users" ? "Users" : activeSection === "roles" ? "Roles" : activeSection === "finance" ? "Finance" : "Downloads"}</strong></div>
+          <div className="breadcrumb"><span>Console</span><span>/</span><strong>{activeSection === "image-tools" ? "Image Tools" : activeSection === "users" ? "Users" : activeSection === "roles" ? "Roles" : activeSection === "finance" ? "Finance" : activeSection === "feedback" ? "Feedback" : "Downloads"}</strong></div>
           <div className="topbar-user"><span className="topbar-avatar">{adminUser?.email?.slice(0, 1).toUpperCase() || "A"}</span><span>{superAdmin ? "Super admin" : "Admin"}</span></div>
         </header>
 
@@ -299,6 +300,8 @@ if (superAdmin ? !isSuperAdmin : !(isAdmin || isSuperAdmin)) {
     <>Roles & <em>permissions</em></>
   ) : activeSection === "finance" ? (
     <>Finance <em>overview</em></>
+  ) : activeSection === "feedback" ? (
+    <>User <em>feedback</em></>
   ) : (
     <>Download <em>activity</em></>
   )}
@@ -312,6 +315,8 @@ if (superAdmin ? !isSuperAdmin : !(isAdmin || isSuperAdmin)) {
         ? "Set clear access across your workspace."
         : activeSection === "finance"
           ? "Review the finance tools and billing data available to this workspace."
+              : activeSection === "feedback"
+                ? "Read suggestions and problem reports submitted by users."
         : "Review who downloaded files, which tools they used, and when."}
 </p>
             </div>
@@ -332,6 +337,8 @@ if (superAdmin ? !isSuperAdmin : !(isAdmin || isSuperAdmin)) {
 
  {activeSection === "image-tools" ? (
   <AdminImageToolsPage />
+) : activeSection === "feedback" && superAdmin ? (
+  <AdminFeedbackPage reloadKey={reloadKey} />
 ) : activeSection === "roles" ? (
   <RolesPermissionsPage
     superAdmin={superAdmin}

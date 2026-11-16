@@ -3,6 +3,7 @@ import {
   Download,
   DollarSign,
   LogOut,
+  MessageSquareText,
   ShieldCheck,
   Sparkles,
   Users,
@@ -113,6 +114,17 @@ function AdminSidebar({
               >
                 <DollarSign size={17} />
                 <span>Finance</span>
+              </button>
+            )}
+
+            {superAdmin && (
+              <button
+                type="button"
+                className={activeSection === "feedback" ? "active" : ""}
+                onClick={() => onSectionChange("feedback")}
+              >
+                <MessageSquareText size={17} />
+                <span>Feedback</span>
               </button>
             )}
           </nav>
