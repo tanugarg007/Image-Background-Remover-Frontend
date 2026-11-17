@@ -38,6 +38,10 @@ function Image() {
   const [error, setError] = useState("");
   const [message, setMessage] = useState("");
   const [downloadPreparing, setDownloadPreparing] = useState(false);
+  const progressMatch = message.match(/(\d{1,3})%/);
+  const progressPercent = progressMatch ? Math.min(100, Number(progressMatch[1])) : null;
+  const preparingModel = message.startsWith("Downloading model")
+    || message.startsWith("Loading background-removal model");
 
   // Clean up temporary image URLs.
   useEffect(() => {
@@ -342,9 +346,7 @@ function Image() {
                   >
                     <Sparkles aria-hidden="true" />
                     {loading
-                      ? message.startsWith("Downloading model") || message.startsWith("Loading background-removal model")
-                        ? "Loading model…"
-                        : "Removing background…"
+                      ? preparingModel ? "Preparing model…" : "Removing background…"
                       : "Remove background"}
                   </button>
                   <button
@@ -443,12 +445,37 @@ function Image() {
                   }`}
                 >
                   {loading ? (
-                    <div className="processing-state">
-                      <RefreshCw
-                        className="processing-spinner"
-                        aria-hidden="true"
-                      />
-                      <p>{message || "Removing background…"}</p>
+                    <div className={`processing-state ${progressPercent === null ? "is-indeterminate" : ""}`}>
+                      <span className="processing-state-icon">
+                        <RefreshCw className="processing-spinner" aria-hidden="true" />
+                      </span>
+                      <span className="processing-state-stage">
+                        {preparingModel ? "MODEL PREPARATION" : "AI CUTOUT"}
+                      </span>
+                      <strong>{preparingModel ? "Preparing your AI model" : "Removing the background"}</strong>
+                      <p>
+                        {preparingModel
+                          ? message.startsWith("Downloading model")
+                            ? "Downloading the model for this browser."
+                            : "Loading the model into your browser."
+                          : "Separating your subject and refining its edges."}
+                      </p>
+                      <div
+                        className="processing-progress"
+                        role="progressbar"
+                        aria-label="Background removal progress"
+                        aria-valuemin={0}
+                        aria-valuemax={100}
+                        aria-valuenow={progressPercent === null ? undefined : progressPercent}
+                        aria-valuetext={message || "Processing image"}
+                      >
+                        <span style={progressPercent === null ? undefined : { width: `${progressPercent}%` }} />
+                      </div>
+                      <small>
+                        {progressPercent === null
+                          ? "Large images may take longer. Keep this tab open."
+                          : `${progressPercent}% complete`}
+                      </small>
                     </div>
                   ) : processedImage ? (
                     <img
@@ -467,7 +494,7 @@ function Image() {
               </article>
             </div>
 
-            {message && (
+            {message && !loading && (
               <p className="action-message" role="status">
                 {message}
               </p>

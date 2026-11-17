@@ -305,6 +305,7 @@
   object-fit: contain;
 }
 .result-placeholder {
+  display: grid;
   padding: 24px;
   align-content: center;
   justify-items: center;
@@ -714,30 +715,105 @@
 
 
 .processing-state {
+  width: min(100%, 320px);
+  min-height: 100%;
+  box-sizing: border-box;
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  gap: 12px;
-  padding: 24px;
-  color: #7164c9;
+  gap: 9px;
+  padding: 20px;
+  border: 1px solid #e8e4f6;
+  border-radius: 15px;
+  color: #4a4564;
+  background: linear-gradient(155deg, #fff 5%, #f8f6ff 100%);
+  box-shadow: 0 10px 28px rgba(55, 45, 109, 0.07);
   text-align: center;
 }
 
+.processing-state-icon {
+  width: 48px;
+  height: 48px;
+  display: grid;
+  place-items: center;
+  margin-bottom: 3px;
+  border: 1px solid #e4defb;
+  border-radius: 16px;
+  color: #6654d2;
+  background: linear-gradient(145deg, #f7f4ff, #ece8ff);
+}
+
+.processing-state-stage {
+  color: #8174c2;
+  font-size: 8px;
+  font-weight: 800;
+  letter-spacing: 1.15px;
+}
+
+.processing-state strong {
+  color: #2d2b3a;
+  font: 750 14px Manrope, sans-serif;
+}
+
 .processing-state p {
+  max-width: 250px;
   margin: 0;
-  font-size: 13px;
+  color: #777589;
+  font-size: 10px;
+  line-height: 1.5;
+}
+
+.processing-progress {
+  width: min(100%, 250px);
+  height: 7px;
+  margin-top: 5px;
+  overflow: hidden;
+  border-radius: 999px;
+  background: #e9e7f2;
+}
+
+.processing-progress span {
+  width: 0;
+  height: 100%;
+  display: block;
+  border-radius: inherit;
+  background: linear-gradient(90deg, #7462df, #a18aef);
+  transition: width 180ms ease;
+}
+
+.processing-state.is-indeterminate .processing-progress span {
+  width: 40%;
+  animation: image-remover-progress 1.35s ease-in-out infinite;
+}
+
+.processing-state small {
+  color: #9996a8;
+  font-size: 9px;
+  line-height: 1.45;
 }
 
 .processing-spinner {
-  width: 30px;
-  height: 30px;
+  width: 21px;
+  height: 21px;
   animation: image-remover-spin 1s linear infinite;
+}
+
+@keyframes image-remover-progress {
+  from { transform: translateX(-110%); }
+  to { transform: translateX(260%); }
 }
 
 @keyframes image-remover-spin {
   to {
     transform: rotate(360deg);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .processing-spinner,
+  .processing-state.is-indeterminate .processing-progress span {
+    animation: none;
   }
 }
 
