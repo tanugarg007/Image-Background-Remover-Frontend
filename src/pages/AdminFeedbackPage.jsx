@@ -88,7 +88,7 @@ function AdminFeedbackPage({ reloadKey }) {
     setError("");
     setEmailNotice("");
     setReplyingId(item._id);
-    setReplyDraft(item.adminReply || "");
+    setReplyDraft("");
   };
 
   const saveReply = async (event, id) => {
@@ -298,15 +298,17 @@ function AdminFeedbackPage({ reloadKey }) {
                           {savingStatusId === item._id && <small>Saving…</small>}
                         </label>
                         <div className="admin-feedback-actions">
-                          <button
-                            type="button"
-                            className="admin-feedback-reply-button"
-                            onClick={() => openReply(item)}
-                            disabled={Boolean(deletingId) || Boolean(savingReplyId)}
-                          >
-                            <MessageSquareReply size={14} />
-                            {item.adminReply ? "Edit reply" : "Reply to user"}
-                          </button>
+                          {!item.adminReply && (
+                            <button
+                              type="button"
+                              className="admin-feedback-reply-button"
+                              onClick={() => openReply(item)}
+                              disabled={Boolean(deletingId) || Boolean(savingReplyId)}
+                            >
+                              <MessageSquareReply size={14} />
+                              Reply to user
+                            </button>
+                          )}
                           <button
                             type="button"
                             className="admin-feedback-delete-button"
@@ -327,7 +329,7 @@ function AdminFeedbackPage({ reloadKey }) {
                           </small>
                         </aside>
                       )}
-                      {replyingId === item._id && (
+                      {replyingId === item._id && !item.adminReply && (
                         <form className="admin-feedback-reply-form" onSubmit={(event) => saveReply(event, item._id)}>
                           <label htmlFor={`feedback-reply-${item._id}`}>Your response</label>
                           <textarea
@@ -353,7 +355,7 @@ function AdminFeedbackPage({ reloadKey }) {
                               className="admin-feedback-save"
                               disabled={Boolean(savingReplyId) || !replyDraft.trim()}
                             >
-                              {savingReplyId === item._id ? "Saving…" : item.adminReply ? "Update reply" : "Send reply"}
+                              {savingReplyId === item._id ? "Saving…" : "Send reply"}
                             </button>
                           </div>
                         </form>
