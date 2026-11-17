@@ -12,7 +12,6 @@ import {
 import "./Image.css";
 import {
   getSessionStatus,
-  prepareBackgroundRemoval,
   removeBackgroundInBrowser,
 } from "../config/api.js";
 import {
@@ -28,7 +27,6 @@ function Image() {
   const fileInputRef = useRef(null);
   const processingRef = useRef(false);
   const downloadPreparingRef = useRef(false);
-  const warmupRequestRef = useRef(0);
 
   const [selectedFile, setSelectedFile] = useState(null);
   const [originalImage, setOriginalImage] = useState("");
@@ -102,14 +100,9 @@ function Image() {
     };
   }, []);
 
-  useEffect(() => () => {
-    warmupRequestRef.current += 1;
-  }, []);
-
   // Select and validate an image.
   const handleFile = (file) => {
     if (!file) return;
-    const warmupRequestId = ++warmupRequestRef.current;
 
     setError("");
     setMessage("");
@@ -136,24 +129,6 @@ function Image() {
 
     setSelectedFile(file);
     setOriginalImage(URL.createObjectURL(file));
-    setMessage("Preparing the background-removal model…");
-    const updateStatus = (nextStatus) => {
-      if (warmupRequestRef.current === warmupRequestId) setMessage(nextStatus);
-    };
-    void prepareBackgroundRemoval(updateStatus)
-      .then(() => {
-        if (warmupRequestRef.current === warmupRequestId && !processingRef.current) {
-          setMessage("Model ready. Click Remove background to continue.");
-        }
-      })
-      .catch((prepareError) => {
-        if (warmupRequestRef.current === warmupRequestId) {
-          setError(prepareError instanceof Error
-            ? prepareError.message
-            : "Could not prepare the background-removal model.");
-          setMessage("");
-        }
-      });
   };
 
   const handleFileChange = (event) => {
@@ -226,11 +201,15 @@ function Image() {
     try {
       setDownloadPreparing(true);
       setError("");
-      setMessage("");
+      setMessage("Checking download access…");
       const fileName = processedFilename || "background-removed.png";
-      if (!(await requireLoginForDownload())) return;
+      if (!(await requireLoginForDownload())) {
+        setMessage("Download was not started. Check your download limit or sign in.");
+        return;
+      }
       reservationPending = true;
 
+      setMessage("Starting your download…");
       triggerFileDownload(processedImage, fileName);
       reservationPending = false;
       setMessage("Your download has started.");
@@ -256,7 +235,6 @@ function Image() {
 
   // Start again with another image.
   const handleReset = () => {
-    warmupRequestRef.current += 1;
     setSelectedFile(null);
     setOriginalImage("");
     setProcessedImage("");
@@ -363,7 +341,11 @@ function Image() {
                     disabled={loading || !selectedFile}
                   >
                     <Sparkles aria-hidden="true" />
-                    {loading ? "Processing..." : "Remove background"}
+                    {loading
+                      ? message.startsWith("Downloading model") || message.startsWith("Loading background-removal model")
+                        ? "Loading model…"
+                        : "Removing background…"
+                      : "Remove background"}
                   </button>
                   <button
                     type="button"
@@ -372,7 +354,7 @@ function Image() {
                     disabled={!processedImage || loading || downloadPreparing}
                   >
                     <Download aria-hidden="true" />
-                    {downloadPreparing ? "Preparing..." : "Download Image"}
+                    {downloadPreparing ? "Checking download..." : "Download Image"}
                   </button>
                 </div>
               </div>
@@ -466,7 +448,7 @@ function Image() {
                         className="processing-spinner"
                         aria-hidden="true"
                       />
-                      <p>Removing background...</p>
+                      <p>{message || "Removing background…"}</p>
                     </div>
                   ) : processedImage ? (
                     <img
