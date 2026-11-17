@@ -38,10 +38,17 @@ function Image() {
   const [error, setError] = useState("");
   const [message, setMessage] = useState("");
   const [downloadPreparing, setDownloadPreparing] = useState(false);
+  const [downloadStarted, setDownloadStarted] = useState(false);
   const progressMatch = message.match(/(\d{1,3})%/);
   const progressPercent = progressMatch ? Math.min(100, Number(progressMatch[1])) : null;
   const preparingModel = message.startsWith("Downloading model")
     || message.startsWith("Loading background-removal model");
+
+  useEffect(() => {
+    if (message !== "Your download has started.") return undefined;
+    const timer = window.setTimeout(() => setMessage(""), 3500);
+    return () => window.clearTimeout(timer);
+  }, [message]);
 
   // Clean up temporary image URLs.
   useEffect(() => {
@@ -110,6 +117,7 @@ function Image() {
 
     setError("");
     setMessage("");
+    setDownloadStarted(false);
     setProcessedImage("");
     setProcessedBlob(null);
     setProcessedFilename("");
@@ -166,6 +174,7 @@ function Image() {
     setLoading(true);
     setError("");
     setMessage("");
+    setDownloadStarted(false);
 
     if (processedImage) {
       URL.revokeObjectURL(processedImage);
@@ -216,6 +225,7 @@ function Image() {
       setMessage("Starting your download…");
       triggerFileDownload(processedImage, fileName);
       reservationPending = false;
+      setDownloadStarted(true);
       setMessage("Your download has started.");
       const trackingRequest = trackDownload("Background removal", fileName, processedBlob.size);
       setDownloadPreparing(false);
@@ -246,6 +256,7 @@ function Image() {
     setProcessedFilename("");
     setError("");
     setMessage("");
+    setDownloadStarted(false);
 
     if (fileInputRef.current) {
       fileInputRef.current.value = "";
@@ -353,10 +364,14 @@ function Image() {
                     type="button"
                     className="download-png-button"
                     onClick={handleDownload}
-                    disabled={!processedImage || loading || downloadPreparing}
+                    disabled={!processedImage || loading || downloadPreparing || downloadStarted}
                   >
                     <Download aria-hidden="true" />
-                    {downloadPreparing ? "Checking download..." : "Download Image"}
+                    {downloadPreparing
+                      ? "Checking download..."
+                      : downloadStarted
+                        ? "Download started"
+                        : "Download Image"}
                   </button>
                 </div>
               </div>
