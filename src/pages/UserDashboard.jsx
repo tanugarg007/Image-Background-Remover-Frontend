@@ -48,6 +48,12 @@ const feedbackStatusLabels = {
   resolved: "Resolved",
 };
 
+const feedbackStatusDescriptions = {
+  pending: "Your feedback was submitted and is waiting for review.",
+  reviewed: "The superadmin reviewed your feedback and replied.",
+  resolved: "The problem has been fixed and confirmed.",
+};
+
 const feedbackStatusIcons = {
   pending: Clock3,
   reviewed: Eye,
@@ -393,6 +399,9 @@ function UserDashboard() {
                               {feedbackStatusLabels[status] || "Pending"}
                             </span>
                           </div>
+                          <p className="user-feedback-status-description">
+                            {feedbackStatusDescriptions[status] || feedbackStatusDescriptions.pending}
+                          </p>
                           <div className="user-feedback-message">
                             <span>Your message</span>
                             <p>{item.message}</p>

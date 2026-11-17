@@ -26,6 +26,12 @@ const statusLabels = {
   resolved: "Resolved",
 };
 
+const statusDescriptions = {
+  pending: "User submitted; awaiting review",
+  reviewed: "Superadmin reviewed and replied",
+  resolved: "Problem fixed and confirmed",
+};
+
 const feedbackFilters = [
   { value: "all", label: "All messages" },
   { value: "pending", label: "Pending" },
@@ -216,17 +222,17 @@ function AdminFeedbackPage({ reloadKey }) {
             <article className="admin-feedback-stat stat-pending">
               <span className="admin-feedback-stat-icon"><Clock3 size={18} /></span>
               <span className="admin-feedback-stat-copy"><small>PENDING</small><strong>{statusCounts.pending}</strong></span>
-              <span className="admin-feedback-stat-note">Needs review</span>
+              <span className="admin-feedback-stat-note">Awaiting review</span>
             </article>
             <article className="admin-feedback-stat stat-reviewed">
               <span className="admin-feedback-stat-icon"><Eye size={18} /></span>
               <span className="admin-feedback-stat-copy"><small>REVIEWED</small><strong>{statusCounts.reviewed}</strong></span>
-              <span className="admin-feedback-stat-note">In progress</span>
+              <span className="admin-feedback-stat-note">Reviewed + replied</span>
             </article>
             <article className="admin-feedback-stat stat-resolved">
               <span className="admin-feedback-stat-icon"><CheckCircle2 size={18} /></span>
               <span className="admin-feedback-stat-copy"><small>RESOLVED</small><strong>{statusCounts.resolved}</strong></span>
-              <span className="admin-feedback-stat-note">Completed</span>
+              <span className="admin-feedback-stat-note">Fixed + confirmed</span>
             </article>
           </div>
 
@@ -291,10 +297,11 @@ function AdminFeedbackPage({ reloadKey }) {
                             disabled={Boolean(savingStatusId) || Boolean(deletingId)}
                             aria-label={`Set status for feedback from ${userName}`}
                           >
-                            <option value="pending">Pending</option>
-                            <option value="reviewed">Reviewed</option>
-                            <option value="resolved">Resolved</option>
+                            <option value="pending" disabled={status !== "pending"}>Pending</option>
+                            <option value="reviewed" disabled={!item.adminReply || status === "resolved"}>Reviewed</option>
+                            <option value="resolved" disabled={status !== "reviewed" && status !== "resolved"}>Resolved</option>
                           </select>
+                          <small>{statusDescriptions[status] || statusDescriptions.pending}</small>
                           {savingStatusId === item._id && <small>Saving…</small>}
                         </label>
                         <div className="admin-feedback-actions">
