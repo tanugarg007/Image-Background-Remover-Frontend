@@ -39,11 +39,12 @@ function Login() {
 
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
-    if (params.get("google") === "error") {
-      setNotice("Google sign-in could not be completed. Please try again or use email.");
+    const provider = params.has("facebook") ? "facebook" : "google";
+    if (params.get(provider) === "error") {
+      setNotice(`${provider === "facebook" ? "Facebook" : "Google"} sign-in could not be completed. Please try again or use email.`);
       return;
     }
-    if (params.get("google") !== "success") return;
+    if (params.get(provider) !== "success") return;
 
     let cancelled = false;
     fetch(`${API_USERS}/me`, { credentials: "include", cache: "no-store" })
@@ -71,6 +72,14 @@ function Login() {
     if (returnTo) params.set("returnTo", returnTo);
     if (new URLSearchParams(window.location.search).get("popup") === "1") params.set("popup", "1");
     window.location.assign(`${API_USERS}/google/login${params.size ? `?${params}` : ""}`);
+  };
+
+  const handleFacebookLogin = () => {
+    const params = new URLSearchParams();
+    const returnTo = getSafeReturnTo();
+    if (returnTo) params.set("returnTo", returnTo);
+    if (new URLSearchParams(window.location.search).get("popup") === "1") params.set("popup", "1");
+    window.location.assign(`${API_USERS}/facebook/login${params.size ? `?${params}` : ""}`);
   };
 
   const handleSubmit = async (event) => {
@@ -245,7 +254,7 @@ function Login() {
               <button type="button" className="provider-button" onClick={() => unavailableProvider("GitHub")}>
                 <GitBranch size={18} /> Continue with GitHub
               </button>
-              <button type="button" className="provider-button" onClick={() => unavailableProvider("Facebook")}>
+              <button type="button" className="provider-button" onClick={handleFacebookLogin}>
                 <span className="facebook-mark" aria-hidden="true">f</span> Continue with Facebook
               </button>
               <button type="button" className="provider-button" onClick={() => unavailableProvider("Apple")}>
