@@ -445,3 +445,17 @@
   .login-success-icon { width: 62px; height: 62px; border-radius: 20px; }
   .login-success-continue { width: 100%; }
 }
+.login-providers { display: grid; gap: 10px; margin-top: 25px; }
+.provider-button { position: relative; width: 100%; min-height: 48px; display: flex; align-items: center; justify-content: center; gap: 11px; border: 1px solid #e7e5ed; border-radius: 11px; color: #292735; background: #fff; font: 600 13px "DM Sans", sans-serif; cursor: pointer; transition: border-color .18s ease, background .18s ease, transform .18s ease, box-shadow .18s ease; }
+.provider-button:hover { border-color: #c9c2ee; background: #fbfaff; box-shadow: 0 5px 16px rgba(44, 37, 82, .07); transform: translateY(-1px); }
+.provider-button:focus-visible, .email-back:focus-visible { outline: 3px solid rgba(126, 105, 237, .28); outline-offset: 2px; }
+.google-mark { font: 700 17px Arial, sans-serif; background: conic-gradient(from -45deg, #4285f4 0 25%, #34a853 25% 48%, #fbbc05 48% 71%, #ea4335 71%); color: transparent; background-clip: text; }
+.facebook-mark { width: 18px; height: 18px; display: grid; place-items: end center; overflow: hidden; border-radius: 50%; color: white; background: #1877f2; font: 700 19px Arial, sans-serif; }
+.provider-divider { height: 17px; display: flex; align-items: center; gap: 12px; color: #a09daa; font-size: 9px; font-weight: 700; letter-spacing: 1.5px; }
+.provider-divider::before, .provider-divider::after { height: 1px; flex: 1; content: ""; background: #eeedf2; }
+.provider-email { color: #fff; border-color: #6954db; background: linear-gradient(110deg, #7966eb, #5d49ce); box-shadow: 0 8px 18px rgba(102, 81, 217, .18); }
+.provider-email:hover { color: #fff; border-color: #5944c4; background: linear-gradient(110deg, #705de1, #523dbf); }
+.provider-email svg:last-child { position: absolute; right: 16px; }
+.email-back { width: fit-content; display: inline-flex; align-items: center; gap: 6px; margin: 0 0 4px; padding: 0; border: 0; color: #7263ca; background: transparent; font: 600 12px "DM Sans", sans-serif; cursor: pointer; }
+.login-providers .login-notice { margin: 0; }
+@media (max-width: 760px) { .login-providers { margin-top: 20px; gap: 8px; } .provider-button { min-height: 46px; } }

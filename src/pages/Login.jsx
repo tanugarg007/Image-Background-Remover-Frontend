@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { ArrowLeft, ArrowRight, ArrowUpRight, CheckCircle2, Eye, EyeOff, LockKeyhole, Mail, ShieldCheck, Sparkles } from "lucide-react";
+import { ArrowLeft, ArrowRight, ArrowUpRight, CheckCircle2, Eye, EyeOff, Github, LockKeyhole, Mail, ShieldCheck, Sparkles } from "lucide-react";
 import { Link, useNavigate } from "react-router-dom";
 import { API_USERS } from "../config/api.js";
 import "./Login.css";
@@ -23,6 +23,9 @@ function Login() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [notice, setNotice] = useState("");
   const [loginSuccess, setLoginSuccess] = useState(null);
+  const [showEmailLogin, setShowEmailLogin] = useState(false);
+
+  const unavailableProvider = (provider) => setNotice(`${provider} sign-in is not connected yet. Please continue with email.`);
 
   useEffect(() => {
     if (
@@ -104,7 +107,7 @@ function Login() {
 
           <Link to="/" className="login-brand" aria-label="AI BG Remover home">
             <span className="login-brand-mark"><Sparkles size={18} strokeWidth={1.8} /></span>
-            <span>AI BG Remover</span>
+            <span>Pixelcraft</span>
           </Link>
 
           <div className="showcase-copy">
@@ -133,7 +136,7 @@ function Login() {
         <section className="login-panel" aria-labelledby="login-heading">
           <Link to="/" className="mobile-login-brand">
             <span className="login-brand-mark"><Sparkles size={17} strokeWidth={1.8} /></span>
-            <span>AI BG Remover</span>
+            <span>Pixelcraft</span>
           </Link>
 
           <div className="login-content">
@@ -141,12 +144,30 @@ function Login() {
 
             <div className="login-heading-block">
               <div className="welcome-icon"><LockKeyhole size={19} strokeWidth={1.8} /></div>
-              <span className="login-eyebrow">WELCOME BACK</span>
-              <h2 id="login-heading">Sign in to your<br />creative space.</h2>
-              <p>Enter your email and password to continue.</p>
+              <span className="login-eyebrow">WELCOME TO PIXELCRAFT</span>
+              <h2 id="login-heading">Choose how you<br />want to continue.</h2>
+              <p>Your creative space is just a sign in away.</p>
             </div>
 
+            <div className="login-providers" aria-label="Sign in options">
+              <button type="button" className="provider-button provider-google" onClick={() => unavailableProvider("Google")}>
+                <span className="google-mark" aria-hidden="true">G</span> Continue with Google
+              </button>
+              <button type="button" className="provider-button" onClick={() => unavailableProvider("GitHub")}>
+                <Github size={18} /> Continue with GitHub
+              </button>
+              <button type="button" className="provider-button" onClick={() => unavailableProvider("Facebook")}>
+                <span className="facebook-mark" aria-hidden="true">f</span> Continue with Facebook
+              </button>
+              <div className="provider-divider"><span>OR</span></div>
+              {!showEmailLogin ? (
+                <button type="button" className="provider-button provider-email" onClick={() => { setNotice(""); setShowEmailLogin(true); }}>
+                  <Mail size={17} /> Continue with Email <ArrowRight size={16} />
+                </button>
+              ) : (
+
             <form className="login-form" onSubmit={handleSubmit}>
+              <button type="button" className="email-back" onClick={() => { setNotice(""); setShowEmailLogin(false); }}><ArrowLeft size={14} /> All sign-in options</button>
               <label className="login-label" htmlFor="login-email">Email address</label>
               <div className="login-input-wrap">
                 <Mail className="login-input-icon" size={17} strokeWidth={1.8} />
@@ -198,9 +219,12 @@ function Login() {
 
               {notice && <p className="login-notice" role="alert">{notice}</p>}
             </form>
+              )}
+              {notice && !showEmailLogin && <p className="login-notice" role="status">{notice}</p>}
+            </div>
 
             <p className="login-signup">
-              New to the studio? <Link to="/register">Create an account</Link>
+              New to Pixelcraft? <Link to="/register">Create an account</Link>
             </p>
           </div>
 
