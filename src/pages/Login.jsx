@@ -37,6 +37,42 @@ function Login() {
     window.close();
   }, [loginSuccess]);
 
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    if (params.get("google") === "error") {
+      setNotice("Google sign-in could not be completed. Please try again or use email.");
+      return;
+    }
+    if (params.get("google") !== "success") return;
+
+    let cancelled = false;
+    fetch(`${API_USERS}/me`, { credentials: "include", cache: "no-store" })
+      .then(async (response) => {
+        const data = await response.json().catch(() => ({}));
+        if (!response.ok) throw new Error(data.message || "Could not finish Google sign-in.");
+        if (cancelled) return;
+        const role = data.user?.role || "user";
+        const destination = role === "superadmin"
+          ? "/superadmin"
+          : role === "admin"
+            ? "/admin"
+            : getSafeReturnTo() || "/user";
+        setLoginSuccess({ destination, role });
+      })
+      .catch((error) => {
+        if (!cancelled) setNotice(error instanceof Error ? error.message : "Could not finish Google sign-in.");
+      });
+    return () => { cancelled = true; };
+  }, []);
+
+  const handleGoogleLogin = () => {
+    const params = new URLSearchParams();
+    const returnTo = getSafeReturnTo();
+    if (returnTo) params.set("returnTo", returnTo);
+    if (new URLSearchParams(window.location.search).get("popup") === "1") params.set("popup", "1");
+    window.location.assign(`${API_USERS}/google/login${params.size ? `?${params}` : ""}`);
+  };
+
   const handleSubmit = async (event) => {
     event.preventDefault();
     setNotice("");
@@ -203,7 +239,7 @@ function Login() {
 
             <div className="provider-divider login-options-divider"><span>OR CONTINUE WITH</span></div>
             <div className="login-providers" aria-label="Other sign in options">
-              <button type="button" className="provider-button provider-google" onClick={() => unavailableProvider("Google")}>
+              <button type="button" className="provider-button provider-google" onClick={handleGoogleLogin}>
                 <span className="google-mark" aria-hidden="true">G</span> Continue with Google
               </button>
               <button type="button" className="provider-button" onClick={() => unavailableProvider("GitHub")}>
