@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { ArrowLeft, ArrowRight, ArrowUpRight, CheckCircle2, Eye, EyeOff, GitBranch, LockKeyhole, Mail, ShieldCheck, Sparkles } from "lucide-react";
+import { Apple, ArrowLeft, ArrowRight, ArrowUpRight, CheckCircle2, Eye, EyeOff, GitBranch, LockKeyhole, Mail, ShieldCheck, Sparkles } from "lucide-react";
 import { Link, useNavigate } from "react-router-dom";
 import { API_USERS } from "../config/api.js";
 import "./Login.css";
@@ -211,6 +211,9 @@ function Login() {
               </button>
               <button type="button" className="provider-button" onClick={() => unavailableProvider("Facebook")}>
                 <span className="facebook-mark" aria-hidden="true">f</span> Continue with Facebook
+              </button>
+              <button type="button" className="provider-button" onClick={() => unavailableProvider("Apple")}>
+                <Apple size={18} fill="currentColor" /> Continue with Apple
               </button>
             </div>
 
