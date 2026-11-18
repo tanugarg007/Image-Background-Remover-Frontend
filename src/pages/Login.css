@@ -445,7 +445,8 @@
   .login-success-icon { width: 62px; height: 62px; border-radius: 20px; }
   .login-success-continue { width: 100%; }
 }
-.login-providers { display: grid; gap: 10px; margin-top: 25px; }
+.login-providers { display: grid; gap: 9px; margin-top: 0; }
+.login-options-divider { margin: 22px 0 14px; }
 .provider-button { position: relative; width: 100%; min-height: 48px; display: flex; align-items: center; justify-content: center; gap: 11px; border: 1px solid #e7e5ed; border-radius: 11px; color: #292735; background: #fff; font: 600 13px "DM Sans", sans-serif; cursor: pointer; transition: border-color .18s ease, background .18s ease, transform .18s ease, box-shadow .18s ease; }
 .provider-button:hover { border-color: #c9c2ee; background: #fbfaff; box-shadow: 0 5px 16px rgba(44, 37, 82, .07); transform: translateY(-1px); }
 .provider-button:focus-visible, .email-back:focus-visible { outline: 3px solid rgba(126, 105, 237, .28); outline-offset: 2px; }

@@ -23,7 +23,6 @@ function Login() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [notice, setNotice] = useState("");
   const [loginSuccess, setLoginSuccess] = useState(null);
-  const [showEmailLogin, setShowEmailLogin] = useState(false);
 
   const unavailableProvider = (provider) => setNotice(`${provider} sign-in is not connected yet. Please continue with email.`);
 
@@ -145,29 +144,11 @@ function Login() {
             <div className="login-heading-block">
               <div className="welcome-icon"><LockKeyhole size={19} strokeWidth={1.8} /></div>
               <span className="login-eyebrow">WELCOME TO PIXELCRAFT</span>
-              <h2 id="login-heading">Choose how you<br />want to continue.</h2>
-              <p>Your creative space is just a sign in away.</p>
+              <h2 id="login-heading">Welcome to<br />Pixelcraft.</h2>
+              <p>Sign in to continue to your creative space.</p>
             </div>
 
-            <div className="login-providers" aria-label="Sign in options">
-              <button type="button" className="provider-button provider-google" onClick={() => unavailableProvider("Google")}>
-                <span className="google-mark" aria-hidden="true">G</span> Continue with Google
-              </button>
-              <button type="button" className="provider-button" onClick={() => unavailableProvider("GitHub")}>
-                <GitBranch size={18} /> Continue with GitHub
-              </button>
-              <button type="button" className="provider-button" onClick={() => unavailableProvider("Facebook")}>
-                <span className="facebook-mark" aria-hidden="true">f</span> Continue with Facebook
-              </button>
-              <div className="provider-divider"><span>OR</span></div>
-              {!showEmailLogin ? (
-                <button type="button" className="provider-button provider-email" onClick={() => { setNotice(""); setShowEmailLogin(true); }}>
-                  <Mail size={17} /> Continue with Email <ArrowRight size={16} />
-                </button>
-              ) : (
-
             <form className="login-form" onSubmit={handleSubmit}>
-              <button type="button" className="email-back" onClick={() => { setNotice(""); setShowEmailLogin(false); }}><ArrowLeft size={14} /> All sign-in options</button>
               <label className="login-label" htmlFor="login-email">Email address</label>
               <div className="login-input-wrap">
                 <Mail className="login-input-icon" size={17} strokeWidth={1.8} />
@@ -219,8 +200,18 @@ function Login() {
 
               {notice && <p className="login-notice" role="alert">{notice}</p>}
             </form>
-              )}
-              {notice && !showEmailLogin && <p className="login-notice" role="status">{notice}</p>}
+
+            <div className="provider-divider login-options-divider"><span>OR CONTINUE WITH</span></div>
+            <div className="login-providers" aria-label="Other sign in options">
+              <button type="button" className="provider-button provider-google" onClick={() => unavailableProvider("Google")}>
+                <span className="google-mark" aria-hidden="true">G</span> Continue with Google
+              </button>
+              <button type="button" className="provider-button" onClick={() => unavailableProvider("GitHub")}>
+                <GitBranch size={18} /> Continue with GitHub
+              </button>
+              <button type="button" className="provider-button" onClick={() => unavailableProvider("Facebook")}>
+                <span className="facebook-mark" aria-hidden="true">f</span> Continue with Facebook
+              </button>
             </div>
 
             <p className="login-signup">
