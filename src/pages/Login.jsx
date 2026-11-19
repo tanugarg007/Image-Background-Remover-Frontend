@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Apple, ArrowLeft, ArrowRight, ArrowUpRight, CheckCircle2, Eye, EyeOff, GitBranch, LockKeyhole, Mail, ShieldCheck, Sparkles } from "lucide-react";
 import { Link, useNavigate } from "react-router-dom";
 import { API_USERS } from "../config/api.js";
@@ -23,6 +23,7 @@ function Login() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [notice, setNotice] = useState("");
   const [loginSuccess, setLoginSuccess] = useState(null);
+  const submitLock = useRef(false);
 
   const unavailableProvider = (provider) => setNotice(`${provider} sign-in is not connected yet. Please continue with email.`);
 
@@ -84,6 +85,8 @@ function Login() {
 
   const handleSubmit = async (event) => {
     event.preventDefault();
+    if (submitLock.current) return;
+    submitLock.current = true;
     setNotice("");
 
     const formData = new FormData(event.currentTarget);
@@ -102,6 +105,13 @@ function Login() {
       const data = await response.json().catch(() => ({}));
 
       if (!response.ok) {
+        if (response.status === 429) {
+          const retryAfter = Number(response.headers.get("Retry-After"));
+          const waitMessage = retryAfter > 0
+            ? ` Please wait about ${Math.ceil(retryAfter / 60)} minute${Math.ceil(retryAfter / 60) === 1 ? "" : "s"} before trying again.`
+            : " Please wait before trying again.";
+          throw new Error(`${data.message || "Too many sign-in attempts."}${waitMessage}`);
+        }
         throw new Error(data.message || "Could not sign in.");
       }
 
@@ -115,6 +125,7 @@ function Login() {
     } catch (error) {
       setNotice(error instanceof Error ? error.message : "Could not connect to the login service.");
     } finally {
+      submitLock.current = false;
       setIsSubmitting(false);
     }
   };

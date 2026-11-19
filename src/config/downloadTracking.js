@@ -1,7 +1,9 @@
 import { API_USERS } from "./api.js";
 
 export const GUEST_DOWNLOAD_LIMIT = 3;
-const DEVICE_ID_KEY = "citc-guest-device-id-v2";
+// Rotate once so browser IDs created while the earlier quota logic was
+// incorrect don't carry an exhausted (or inflated) balance into this limit.
+const DEVICE_ID_KEY = "citc-guest-device-id-v3";
 let currentQuota = null;
 let quotaInitializationPromise = null;
 const pendingReservationIds = [];
@@ -108,7 +110,6 @@ function showLoginPrompt() {
   dialog.style.cssText = "width:min(100%,440px);padding:32px;border:1px solid #eee9ff;border-radius:24px;background:#fff;box-shadow:0 24px 80px rgba(18,12,35,.28);text-align:center;color:#252137";
   dialog.innerHTML = `
     <div style="width:56px;height:56px;margin:0 auto 18px;border-radius:18px;display:grid;place-items:center;background:#f1edff;color:#7657df;font-size:25px;font-weight:700" aria-hidden="true">+</div>
-    <p style="margin:0 0 8px;color:#7657df;font-size:12px;font-weight:700;letter-spacing:.12em;text-transform:uppercase">Free download limit</p>
     <h2 id="guest-download-title" style="margin:0;font-size:25px;line-height:1.25"></h2>
     <p id="guest-download-description" style="margin:12px 0 24px;color:#706d7c;font-size:15px;line-height:1.6"></p>
     <div style="display:flex;gap:10px;margin-top:12px">
@@ -119,8 +120,8 @@ function showLoginPrompt() {
   document.body.appendChild(overlay);
   const title = dialog.querySelector("#guest-download-title");
   const description = dialog.querySelector("#guest-download-description");
-  title.textContent = "You've used all 3 free downloads";
-  description.textContent = "This browser has reached its free download limit. Sign in to continue downloading; your current tool will stay open.";
+  title.textContent = "0 free downloads left";
+  description.textContent = "Sign in to continue downloading; your current tool will stay open.";
   const loginButton = dialog.querySelector("[data-login]");
   const closeButton = dialog.querySelector("[data-close]");
   let loginWindow = null;
@@ -166,14 +167,26 @@ function showLoginPrompt() {
 
 export async function requireLoginForDownload(imageCount = 1, options = {}) {
   const count = Number.isFinite(imageCount) ? Math.max(1, Math.floor(imageCount)) : 1;
+  let promptedForLogin = false;
   try {
+    // Check the server's latest balance at click time. Reaching 3 of 3 only
+    // updates the status; the login prompt opens on the next download click.
+    const latestQuota = await refreshGuestDownloadQuota();
+    if (latestQuota.authenticated !== true && Number(latestQuota.remaining) <= 0) {
+      promptedForLogin = true;
+      await waitForQuotaPaint();
+      if (!(await showLoginPrompt())) return false;
+    }
+
     let result = await quotaRequest("/download-quota/consume", {
       method: "POST",
       body: JSON.stringify({ count }),
     });
-    if (!result.allowed && Number(result.remaining) === 0 && result.authenticated !== true) {
+    const availableBeforePrompt = Number(result.remaining ?? currentQuota?.remaining) || 0;
+    if (!result.allowed && availableBeforePrompt <= 0 && result.authenticated !== true && !promptedForLogin) {
       publishQuota(normalizeQuota({ ...currentQuota, ...result, error: "" }));
       await waitForQuotaPaint();
+      promptedForLogin = true;
       if (!(await showLoginPrompt())) return false;
       result = await quotaRequest("/download-quota/consume", {
         method: "POST",

@@ -30,15 +30,24 @@ function GuestDownloadStatus() {
     };
   }, []);
 
-  const remaining = quota?.remaining ?? GUEST_DOWNLOAD_LIMIT;
+  const used = Math.min(GUEST_DOWNLOAD_LIMIT, Math.max(0, quota?.used ?? 0));
+  const remaining = Math.min(
+    GUEST_DOWNLOAD_LIMIT,
+    Math.max(0, Number(quota?.remaining ?? GUEST_DOWNLOAD_LIMIT - used))
+  );
   const isAuthenticated = quota?.authenticated === true;
+  const guestStatus = remaining === 0
+    ? "0 free downloads left"
+    : `${used} of ${GUEST_DOWNLOAD_LIMIT} free downloads used`;
 
   return (
     <div className="guest-download-status" aria-label={isAuthenticated ? "Signed-in download status" : "Free download limit"}>
       <span className="guest-download-status-dot" />
       <span className="guest-download-status-copy" role="status" aria-live="polite">
-        <strong>{isAuthenticated ? "Signed in" : quota ? `${remaining} free download${remaining === 1 ? "" : "s"} left` : notice ? "Download limit unavailable" : "Checking downloads…"}</strong>
-        {isAuthenticated ? <small>Signed-in downloads enabled</small> : quota && <small>{remaining === 0 ? "No free downloads left" : `${GUEST_DOWNLOAD_LIMIT} total`}</small>}
+        <strong>{isAuthenticated ? "Signed in" : quota ? guestStatus : notice ? "Download limit unavailable" : "Checking downloads…"}</strong>
+        {isAuthenticated
+          ? <small>Signed-in downloads enabled</small>
+          : quota && remaining > 0 && <small>{remaining} free download{remaining === 1 ? "" : "s"} left</small>}
       </span>
       {notice && <small className="guest-download-status-error" role="status">{notice}</small>}
     </div>
