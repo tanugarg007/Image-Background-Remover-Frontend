@@ -3,7 +3,7 @@ import { API_USERS } from "./api.js";
 export const GUEST_DOWNLOAD_LIMIT = 3;
 // Rotate once so browser IDs created while the earlier quota logic was
 // incorrect don't carry an exhausted (or inflated) balance into this limit.
-const DEVICE_ID_KEY = "citc-guest-device-id-v3";
+const DEVICE_ID_KEY = "citc-guest-device-id-v4";
 let currentQuota = null;
 let quotaInitializationPromise = null;
 const pendingReservationIds = [];

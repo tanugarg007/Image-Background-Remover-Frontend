@@ -44,11 +44,16 @@ function Image() {
   const preparingModel = message.startsWith("Downloading model")
     || message.startsWith("Loading background-removal model");
 
+  // Keep the success label brief, then let the user download the same result
+  // again without having to process or select the image a second time.
   useEffect(() => {
-    if (message !== "Your download has started.") return undefined;
-    const timer = window.setTimeout(() => setMessage(""), 3500);
+    if (!downloadStarted) return undefined;
+    const timer = window.setTimeout(() => {
+      setDownloadStarted(false);
+      setMessage("Background removed successfully!");
+    }, 2500);
     return () => window.clearTimeout(timer);
-  }, [message]);
+  }, [downloadStarted]);
 
   // Clean up temporary image URLs.
   useEffect(() => {
@@ -210,6 +215,7 @@ function Image() {
   const handleDownload = async () => {
     if (!processedImage || !processedBlob || loading || downloadPreparing || downloadPreparingRef.current) return;
     let reservationPending = false;
+    let downloadTriggered = false;
     downloadPreparingRef.current = true;
     try {
       setDownloadPreparing(true);
@@ -224,6 +230,7 @@ function Image() {
 
       setMessage("Starting your download…");
       triggerFileDownload(processedImage, fileName);
+      downloadTriggered = true;
       reservationPending = false;
       setDownloadStarted(true);
       setMessage("Your download has started.");
@@ -242,6 +249,16 @@ function Image() {
           : "Image download failed. Please try again."
       );
     } finally {
+      if (downloadTriggered) {
+        setSelectedFile(null);
+        setOriginalImage("");
+        setProcessedImage("");
+        setProcessedBlob(null);
+        setProcessedFilename("");
+        setError("");
+        setMessage("");
+        setDownloadStarted(false);
+      }
       downloadPreparingRef.current = false;
       setDownloadPreparing(false);
     }
