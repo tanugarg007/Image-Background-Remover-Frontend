@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { Apple, ArrowLeft, ArrowRight, ArrowUpRight, CheckCircle2, Eye, EyeOff, LockKeyhole, Mail, ShieldCheck, Sparkles } from "lucide-react";
+import { ArrowLeft, ArrowRight, ArrowUpRight, CheckCircle2, Eye, EyeOff, LockKeyhole, Mail, ShieldCheck, Sparkles } from "lucide-react";
 import { Link, useNavigate } from "react-router-dom";
 import { API_USERS } from "../config/api.js";
 import "./Login.css";
@@ -26,20 +26,6 @@ function Login() {
   const submitLock = useRef(false);
 
   const unavailableProvider = (provider) => setNotice(`${provider} sign-in is not connected yet. Please continue with email.`);
-   const handleAppleLogin = () => {
-  const params = new URLSearchParams();
-  const returnTo = getSafeReturnTo();
-
-  if (returnTo) params.set("returnTo", returnTo);
-
-  if (new URLSearchParams(window.location.search).get("popup") === "1") {
-    params.set("popup", "1");
-  }
-
-  window.location.assign(
-    `${API_USERS}/apple/login${params.size ? `?${params}` : ""}`
-  );
-};
   useEffect(() => {
     if (
       !loginSuccess
@@ -277,9 +263,6 @@ function Login() {
               </button>
               <button type="button" className="provider-button" onClick={handleFacebookLogin}>
                 <span className="facebook-mark" aria-hidden="true">f</span> Continue with Facebook
-              </button>
-       <button type="button" className="provider-button" onClick={handleAppleLogin}>
-          <Apple size={18} fill="currentColor" /> Continue with Apple
               </button>
             </div>
 
