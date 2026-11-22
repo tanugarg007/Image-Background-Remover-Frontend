@@ -124,9 +124,7 @@ function showLoginPrompt() {
   description.textContent = "Sign in to continue downloading; your current tool will stay open.";
   const loginButton = dialog.querySelector("[data-login]");
   const closeButton = dialog.querySelector("[data-close]");
-  let loginWindow = null;
   const finish = (authenticated) => {
-    window.removeEventListener("message", handleLoginMessage);
     overlay.remove();
     activeLoginPrompt = null;
     if (authenticated) {
@@ -134,31 +132,12 @@ function showLoginPrompt() {
     }
     resolvePrompt(authenticated);
   };
-  const handleLoginMessage = (event) => {
-    if (
-      event.origin === window.location.origin
-      && event.source === loginWindow
-      && event.data?.type === "citc-login-complete"
-    ) {
-      finish(true);
-    }
-  };
-
   loginButton.addEventListener("click", () => {
     const returnTo = `${window.location.pathname}${window.location.search}${window.location.hash}`;
-    const loginUrl = `/login?${new URLSearchParams({ returnTo, popup: "1" }).toString()}`;
-    loginWindow = window.open("about:blank", "_blank");
-    if (!loginWindow) {
-      description.textContent = "Your browser blocked the sign-in window. Allow pop-ups for this site and try again; your tool will stay open.";
-      return;
-    }
-
-    loginButton.disabled = true;
-    window.addEventListener("message", handleLoginMessage);
-    loginWindow.location.replace(loginUrl);
+    const loginUrl = `/login?${new URLSearchParams({ returnTo }).toString()}`;
+    window.location.assign(loginUrl);
   });
   closeButton.addEventListener("click", () => {
-    if (loginWindow && !loginWindow.closed) loginWindow.close();
     finish(false);
   });
   loginButton.focus();
