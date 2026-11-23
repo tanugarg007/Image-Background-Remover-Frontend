@@ -36,14 +36,8 @@ function normalizeQuota(quota) {
 }
 
 function publishQuota(quota) {
-  currentQuota = quota;
-  window.dispatchEvent(new CustomEvent("guest-download-count-change", { detail: quota }));
-}
-
-function waitForQuotaPaint() {
-  return new Promise((resolve) => {
-    requestAnimationFrame(() => requestAnimationFrame(resolve));
-  });
+  currentQuota = { ...quota, updatedAt: Date.now() };
+  window.dispatchEvent(new CustomEvent("guest-download-count-change", { detail: currentQuota }));
 }
 
 function getCurrentToolReturnTo() {
@@ -184,12 +178,14 @@ export async function requireLoginForDownload(imageCount = 1, options = {}) {
   const promptOptions = { ...options, returnTo };
   let promptedForLogin = false;
   try {
-    // Check the server's latest balance at click time. Reaching 3 of 3 only
-    // updates the status; the login prompt opens on the next download click.
-    const latestQuota = await refreshGuestDownloadQuota();
-    if (latestQuota.authenticated !== true && Number(latestQuota.remaining) <= 0) {
+    // Reuse a recent exhausted balance to open login immediately. Otherwise
+    // the consume request below is the authoritative check, avoiding a
+    // separate quota refresh request on every download click.
+    const knownExhausted = currentQuota?.authenticated === false
+      && Number(currentQuota.remaining) <= 0
+      && Date.now() - Number(currentQuota.updatedAt || 0) < 30_000;
+    if (knownExhausted) {
       promptedForLogin = true;
-      await waitForQuotaPaint();
       if (!(await showLoginPrompt(promptOptions))) return false;
     }
 
@@ -200,7 +196,6 @@ export async function requireLoginForDownload(imageCount = 1, options = {}) {
     const availableBeforePrompt = Number(result.remaining ?? currentQuota?.remaining) || 0;
     if (!result.allowed && availableBeforePrompt <= 0 && result.authenticated !== true && !promptedForLogin) {
       publishQuota(normalizeQuota({ ...currentQuota, ...result, error: "" }));
-      await waitForQuotaPaint();
       promptedForLogin = true;
       if (!(await showLoginPrompt(promptOptions))) return false;
       result = await quotaRequest("/download-quota/consume", {

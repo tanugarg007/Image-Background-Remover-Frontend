@@ -70,6 +70,24 @@ function paintBackground(context, width, height, background) {
   context.fillRect(0, 0, width, height);
 }
 
+async function readImageResponse(response, onProgress) {
+  const reader = response.body?.getReader?.();
+  if (!reader) return response.blob();
+
+  const totalBytes = Number(response.headers.get("content-length")) || 0;
+  const chunks = [];
+  let loadedBytes = 0;
+  while (true) {
+    const { done, value } = await reader.read();
+    if (done) break;
+    chunks.push(value);
+    loadedBytes += value.byteLength;
+    onProgress(totalBytes > 0 ? Math.min(100, Math.round((loadedBytes / totalBytes) * 100)) : null);
+  }
+
+  return new Blob(chunks, { type: response.headers.get("content-type") || "image/png" });
+}
+
 function BackgroundChanger() {
   const inputRef = useRef(null);
   const downloadLockRef = useRef(false);
@@ -83,6 +101,7 @@ function BackgroundChanger() {
   const [customColor, setCustomColor] = useState("#f2eee8");
   const [isCustom, setIsCustom] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [progressInfo, setProgressInfo] = useState({ label: "", percent: null });
   const [error, setError] = useState("");
   const [message, setMessage] = useState("");
 
@@ -204,15 +223,24 @@ const selectFile = (selectedFile) => {
     if (!file || loading) return;
 
     setLoading(true);
+    setProgressInfo({ label: "Loading background model", percent: null });
     setError("");
     setMessage("");
 
     try {
-      const imageBlob = await removeBackgroundInBrowser(file, setMessage);
+      const imageBlob = await removeBackgroundInBrowser(file, (status) => {
+        setMessage(status);
+        const percentMatch = status.match(/(\d{1,3})%/);
+        setProgressInfo({
+          label: status.replace(/\s*\d{1,3}%/, "").replace(/[.…]+$/, "").trim(),
+          percent: percentMatch ? Math.min(100, Number(percentMatch[1])) : null,
+        });
+      });
 
       setCutoutBlob(imageBlob);
       setCutoutUrl(URL.createObjectURL(imageBlob));
       setMessage("Background removed successfully!");
+      setProgressInfo({ label: "Background ready", percent: 100 });
     } catch (cause) {
       console.error("Background removal error:", cause);
 
@@ -233,10 +261,12 @@ const downloadResult = async () => {
   downloadLockRef.current = true;
   const loadingStartedAt = Date.now();
   setLoading(true);
+  setProgressInfo({ label: "Checking download access", percent: null });
   setError("");
   setMessage("");
 
   try {
+    await new Promise((resolve) => window.requestAnimationFrame(() => window.requestAnimationFrame(resolve)));
     const hasQuota = await requireLoginForDownload(1, {
       returnTo: "/#background-changer",
       onLogin: () => savePendingDownload({
@@ -251,6 +281,7 @@ const downloadResult = async () => {
       }),
     });
     if (!hasQuota) return;
+    setProgressInfo({ label: "Preparing your new background", percent: null });
     // Keep the original image frame for export. Some background-removal
     // models return a tightly cropped cutout, while the preview centers it
     // inside the editor. Drawing it into the source frame keeps that layout
@@ -316,6 +347,7 @@ const downloadResult = async () => {
     if (!result || result.size === 0) {
       throw new Error("Could not create the PNG image.");
     }
+    setProgressInfo({ label: "Saving your image", percent: null });
 
     // Save image through backend
     const body = new FormData();
@@ -347,6 +379,8 @@ const downloadResult = async () => {
       );
     }
 
+    setProgressInfo({ label: "Downloading your image", percent: null });
+
     // Download saved image from backend
    
 const downloadResponse = await fetch(
@@ -359,7 +393,9 @@ if (!downloadResponse.ok) {
   );
 }
 
-const savedImage = await downloadResponse.blob();
+const savedImage = await readImageResponse(downloadResponse, (percent) => {
+  setProgressInfo({ label: "Downloading your image", percent });
+});
 
 if (savedImage.size === 0) {
   throw new Error("The downloaded image is empty.");
@@ -370,6 +406,7 @@ const downloadUrl = URL.createObjectURL(savedImage);
 const originalName =
   file.name.replace(/\.[^.]+$/, "") || "image";
 const fileName = `${originalName}-background.png`;
+setProgressInfo({ label: "Download ready", percent: 100 });
 triggerFileDownload(downloadUrl, fileName, { revokeUrl: true });
 await trackDownload("Background changer", fileName, savedImage.size);
 reset();
@@ -386,6 +423,7 @@ reset();
     }
     setLoading(false);
     downloadLockRef.current = false;
+    setProgressInfo({ label: "", percent: null });
   }
 };
 
@@ -512,7 +550,20 @@ reset();
                   {loading && (
                     <div className="bgx-loading" role="status" aria-live="polite">
                       <span className="bgx-download-spinner" aria-hidden="true" />
-                      <span>{cutoutUrl ? "Preparing your download…" : "Removing the background…"}</span>
+                      <div className="bgx-progress-copy">
+                        <strong>{progressInfo.label || (cutoutUrl ? "Preparing your download" : "Removing the background")}</strong>
+                        <span>{progressInfo.percent == null ? "Working on your image" : `${progressInfo.percent}% complete`}</span>
+                      </div>
+                      <div
+                        className={`bgx-progress-track ${progressInfo.percent == null ? "bgx-progress-indeterminate" : ""}`}
+                        role="progressbar"
+                        aria-label={progressInfo.label || "Image processing progress"}
+                        aria-valuemin="0"
+                        aria-valuemax="100"
+                        aria-valuenow={progressInfo.percent ?? undefined}
+                      >
+                        <span style={progressInfo.percent == null ? undefined : { width: `${progressInfo.percent}%` }} />
+                      </div>
                     </div>
                   )}
                 </div>

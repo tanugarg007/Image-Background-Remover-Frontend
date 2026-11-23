@@ -279,6 +279,53 @@
   border-width: 2.5px;
 }
 
+.bgx-progress-copy {
+  display: grid;
+  gap: 4px;
+  text-align: center;
+}
+
+.bgx-progress-copy strong {
+  font-size: 13px;
+  font-weight: 750;
+}
+
+.bgx-progress-copy span {
+  color: rgba(255, 255, 255, 0.76);
+  font-size: 10px;
+  font-weight: 550;
+}
+
+.bgx-progress-track {
+  position: relative;
+  width: min(260px, 65%);
+  height: 6px;
+  overflow: hidden;
+  border: 1px solid rgba(255, 255, 255, 0.22);
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.17);
+  box-shadow: 0 3px 12px rgba(15, 12, 32, 0.18);
+}
+
+.bgx-progress-track > span {
+  height: 100%;
+  display: block;
+  border-radius: inherit;
+  background: linear-gradient(90deg, #d4c9ff, #fff 58%, #b8f0e1);
+  box-shadow: 0 0 12px rgba(220, 211, 255, 0.62);
+  transition: width 220ms ease;
+}
+
+.bgx-progress-indeterminate > span {
+  width: 38%;
+  animation: bgx-progress-sweep 1.15s ease-in-out infinite;
+}
+
+@keyframes bgx-progress-sweep {
+  from { transform: translateX(-110%); }
+  to { transform: translateX(270%); }
+}
+
 .bgx-canvas-caption {
   padding: 12px 2px 1px;
   color: #898690;
@@ -531,7 +578,8 @@
 
 @media (prefers-reduced-motion: reduce) {
   .bgx-download-spinner,
-  .bgx-primary-loading::after {
+  .bgx-primary-loading::after,
+  .bgx-progress-indeterminate > span {
     animation: none;
   }
 }
