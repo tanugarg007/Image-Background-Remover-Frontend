@@ -255,45 +255,60 @@
   filter: drop-shadow(0 12px 14px rgba(30, 27, 39, 0.14));
 }
 
-.bgx-loading {
-  position: absolute;
-  inset: 0;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  gap: 12px;
-  color: #fff;
-  background: linear-gradient(145deg, rgba(27, 25, 44, 0.56), rgba(45, 37, 82, 0.62));
-  backdrop-filter: blur(7px);
-  font-size: 12px;
-  font-weight: 700;
-  letter-spacing: 0.1px;
-  text-shadow: 0 1px 8px rgba(15, 12, 32, 0.24);
-}
-
-.bgx-loading .bgx-download-spinner {
-  width: 25px;
-  height: 25px;
-  flex-basis: 25px;
-  border-width: 2.5px;
-}
-
-.bgx-progress-copy {
+.bgx-task-progress {
   display: grid;
-  gap: 4px;
-  text-align: center;
+  gap: 11px;
+  padding: 12px 13px;
+  border: 1px solid #e8e2fa;
+  border-radius: 12px;
+  background: linear-gradient(135deg, #faf9ff, #f5f3ff 70%, #f4fbfa);
+  box-shadow: 0 5px 14px rgba(77, 60, 143, 0.06);
 }
 
-.bgx-progress-copy strong {
-  font-size: 13px;
-  font-weight: 750;
+.bgx-task-progress-heading {
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 9px;
 }
 
-.bgx-progress-copy span {
-  color: rgba(255, 255, 255, 0.76);
+.bgx-task-progress-heading > div {
+  min-width: 0;
+  flex: 1;
+  display: grid;
+  gap: 3px;
+}
+
+.bgx-task-progress-heading strong {
+  overflow: hidden;
+  color: #38324f;
   font-size: 10px;
-  font-weight: 550;
+  font-weight: 750;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.bgx-task-progress-heading small {
+  color: #89849a;
+  font-size: 9px;
+}
+
+.bgx-task-progress-heading b {
+  color: #6b58cf;
+  font-size: 10px;
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+}
+
+.bgx-task-progress-spinner {
+  width: 17px;
+  height: 17px;
+  flex: 0 0 17px;
+  border: 2px solid #ded8f6;
+  border-top-color: #705bd3;
+  border-right-color: #a594ef;
+  border-radius: 50%;
+  animation: bgx-download-spin 750ms cubic-bezier(0.5, 0.1, 0.3, 0.9) infinite;
 }
 
 .bgx-progress-track {
@@ -301,18 +316,18 @@
   width: min(260px, 65%);
   height: 6px;
   overflow: hidden;
-  border: 1px solid rgba(255, 255, 255, 0.22);
+  border: 1px solid rgba(103, 84, 195, 0.1);
   border-radius: 999px;
-  background: rgba(255, 255, 255, 0.17);
-  box-shadow: 0 3px 12px rgba(15, 12, 32, 0.18);
+  background: #e9e6f3;
+  box-shadow: inset 0 1px 2px rgba(40, 33, 70, 0.07);
 }
 
 .bgx-progress-track > span {
   height: 100%;
   display: block;
   border-radius: inherit;
-  background: linear-gradient(90deg, #d4c9ff, #fff 58%, #b8f0e1);
-  box-shadow: 0 0 12px rgba(220, 211, 255, 0.62);
+  background: linear-gradient(90deg, #7661df, #a28bef 58%, #74c8b2);
+  box-shadow: 0 0 10px rgba(137, 116, 224, 0.3);
   transition: width 220ms ease;
 }
 
@@ -578,6 +593,7 @@
 
 @media (prefers-reduced-motion: reduce) {
   .bgx-download-spinner,
+  .bgx-task-progress-spinner,
   .bgx-primary-loading::after,
   .bgx-progress-indeterminate > span {
     animation: none;
@@ -593,6 +609,37 @@
   color: #b43b49;
   font-size: 10px;
   line-height: 1.5;
+}
+
+.bgx-success {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  margin: 0;
+  padding: 10px 11px;
+  border: 1px solid #d8eee1;
+  border-radius: 10px;
+  color: #347a55;
+  background: linear-gradient(120deg, #f3fbf5, #edf8f1);
+  box-shadow: 0 4px 12px rgba(54, 132, 82, 0.05);
+  font-size: 10px;
+  font-weight: 650;
+  line-height: 1.45;
+}
+
+.bgx-success > span {
+  width: 23px;
+  height: 23px;
+  flex: 0 0 23px;
+  display: grid;
+  place-items: center;
+  border-radius: 7px;
+  color: #328657;
+  background: #ddf2e4;
+}
+
+.bgx-success p {
+  margin: 0;
 }
 
 .bgx-trust {

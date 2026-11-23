@@ -36,8 +36,8 @@ function normalizeQuota(quota) {
 }
 
 function publishQuota(quota) {
-  currentQuota = { ...quota, updatedAt: Date.now() };
-  window.dispatchEvent(new CustomEvent("guest-download-count-change", { detail: currentQuota }));
+  currentQuota = quota;
+  window.dispatchEvent(new CustomEvent("guest-download-count-change", { detail: quota }));
 }
 
 function getCurrentToolReturnTo() {
@@ -182,8 +182,7 @@ export async function requireLoginForDownload(imageCount = 1, options = {}) {
     // the consume request below is the authoritative check, avoiding a
     // separate quota refresh request on every download click.
     const knownExhausted = currentQuota?.authenticated === false
-      && Number(currentQuota.remaining) <= 0
-      && Date.now() - Number(currentQuota.updatedAt || 0) < 30_000;
+      && Number(currentQuota.remaining) <= 0;
     if (knownExhausted) {
       promptedForLogin = true;
       if (!(await showLoginPrompt(promptOptions))) return false;

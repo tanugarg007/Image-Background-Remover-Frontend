@@ -547,25 +547,6 @@ reset();
                     }
                   />
 
-                  {loading && (
-                    <div className="bgx-loading" role="status" aria-live="polite">
-                      <span className="bgx-download-spinner" aria-hidden="true" />
-                      <div className="bgx-progress-copy">
-                        <strong>{progressInfo.label || (cutoutUrl ? "Preparing your download" : "Removing the background")}</strong>
-                        <span>{progressInfo.percent == null ? "Working on your image" : `${progressInfo.percent}% complete`}</span>
-                      </div>
-                      <div
-                        className={`bgx-progress-track ${progressInfo.percent == null ? "bgx-progress-indeterminate" : ""}`}
-                        role="progressbar"
-                        aria-label={progressInfo.label || "Image processing progress"}
-                        aria-valuemin="0"
-                        aria-valuemax="100"
-                        aria-valuenow={progressInfo.percent ?? undefined}
-                      >
-                        <span style={progressInfo.percent == null ? undefined : { width: `${progressInfo.percent}%` }} />
-                      </div>
-                    </div>
-                  )}
                 </div>
 
                 <div className="bgx-canvas-caption">
@@ -686,12 +667,41 @@ reset();
 
               <span>
                 {loading
-                  ? "Preparing your download…"
+                  ? (cutoutUrl ? "Preparing your download…" : "Removing the background…")
                   : cutoutUrl
                     ? "Save & Download Image"
                     : "Change background"}
               </span>
             </button>
+
+            {loading && (
+              <div className="bgx-task-progress" role="status" aria-live="polite">
+                <div className="bgx-task-progress-heading">
+                  <span className="bgx-task-progress-spinner" aria-hidden="true" />
+                  <div>
+                    <strong>{progressInfo.label || (cutoutUrl ? "Preparing your download" : "Removing the background")}</strong>
+                    <small>
+                      {progressInfo.label.toLowerCase().includes("download")
+                        ? "Final PNG download"
+                        : progressInfo.label.toLowerCase().includes("saving")
+                          ? "Exporting selected scene"
+                          : "AI background removal"}
+                    </small>
+                  </div>
+                  {progressInfo.percent != null && <b>{progressInfo.percent}%</b>}
+                </div>
+                <div
+                  className={`bgx-progress-track ${progressInfo.percent == null ? "bgx-progress-indeterminate" : ""}`}
+                  role="progressbar"
+                  aria-label={progressInfo.label || "Image processing progress"}
+                  aria-valuemin="0"
+                  aria-valuemax="100"
+                  aria-valuenow={progressInfo.percent ?? undefined}
+                >
+                  <span style={progressInfo.percent == null ? undefined : { width: `${progressInfo.percent}%` }} />
+                </div>
+              </div>
+            )}
 
             {cutoutUrl && (
               <button
@@ -705,9 +715,12 @@ reset();
             )}
 
             {message && (
-              <p className="bgx-success" role="status">
-                {message}
-              </p>
+              message.includes("successfully") || message.startsWith("Signed in") ? (
+                <div className="bgx-success" role="status">
+                  <span><Check size={15} /></span>
+                  <p>{message}</p>
+                </div>
+              ) : null
             )}
 
             {error && (

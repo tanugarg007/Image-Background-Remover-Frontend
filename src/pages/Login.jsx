@@ -26,7 +26,7 @@ function Login() {
   const submitLock = useRef(false);
 
   useEffect(() => {
-    if (!loginSuccess) return undefined;
+    if (!loginSuccess?.returnRequested) return undefined;
     const timer = window.setTimeout(() => {
       navigate(loginSuccess.destination, { replace: true });
     }, 700);
@@ -61,12 +61,13 @@ function Login() {
         if (!response.ok) throw new Error(data.message || "Could not finish Google sign-in.");
         if (cancelled) return;
         const role = data.user?.role || "user";
-        const destination = getSafeReturnTo() || (role === "superadmin"
+        const requestedReturnTo = getSafeReturnTo();
+        const destination = requestedReturnTo || (role === "superadmin"
           ? "/superadmin"
           : role === "admin"
             ? "/admin"
             : "/user");
-        setLoginSuccess({ destination, role });
+        setLoginSuccess({ destination, role, returnRequested: Boolean(requestedReturnTo) });
       })
       .catch((error) => {
         if (!cancelled) setNotice(error instanceof Error ? error.message : "Could not finish Google sign-in.");
@@ -123,12 +124,13 @@ function Login() {
       }
 
       const role = data.user?.role || "user";
-      const destination = getSafeReturnTo() || (role === "superadmin"
+      const requestedReturnTo = getSafeReturnTo();
+      const destination = requestedReturnTo || (role === "superadmin"
         ? "/superadmin"
         : role === "admin"
           ? "/admin"
           : "/user");
-      setLoginSuccess({ destination, role });
+      setLoginSuccess({ destination, role, returnRequested: Boolean(requestedReturnTo) });
     } catch (error) {
       setNotice(error instanceof Error ? error.message : "Could not connect to the login service.");
     } finally {
