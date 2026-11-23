@@ -12,9 +12,10 @@ import {
   Upload,
 } from "lucide-react";
 import "./BackgroundChanger.css";
-import { API_USERS, removeBackgroundInBrowser } from "../config/api.js";
+import { API_USERS, getSessionStatus, removeBackgroundInBrowser } from "../config/api.js";
 import { releaseGuestDownload, requireLoginForDownload, trackDownload } from "../config/downloadTracking.js";
 import { triggerFileDownload } from "../config/triggerFileDownload.js";
+import { claimPendingDownload, savePendingDownload } from "../config/downloadHandoff.js";
 
 const API_BASE = API_USERS;
 
@@ -72,10 +73,13 @@ function paintBackground(context, width, height, background) {
 
 function BackgroundChanger() {
   const inputRef = useRef(null);
+  const downloadLockRef = useRef(false);
 
   const [file, setFile] = useState(null);
   const [originalUrl, setOriginalUrl] = useState("");
   const [cutoutUrl, setCutoutUrl] = useState("");
+  const [cutoutBlob, setCutoutBlob] = useState(null);
+  const [resumeDownload, setResumeDownload] = useState(false);
   const [selectedBackground, setSelectedBackground] = useState(0);
   const [customColor, setCustomColor] = useState("#f2eee8");
   const [isCustom, setIsCustom] = useState(false);
@@ -107,6 +111,49 @@ function BackgroundChanger() {
       }
     };
   }, [cutoutUrl]);
+
+  useEffect(() => {
+    let active = true;
+    const restorePendingDownload = async () => {
+      let pending;
+      try {
+        pending = await claimPendingDownload("Background changer");
+        if (!pending) return;
+        const session = await getSessionStatus();
+        if (!session.authenticated || !active) {
+          await savePendingDownload(pending);
+          return;
+        }
+        const restoredOriginalUrl = URL.createObjectURL(pending.originalFile);
+        const restoredCutoutUrl = URL.createObjectURL(pending.blob);
+        setFile(pending.originalFile);
+        setOriginalUrl(restoredOriginalUrl);
+        setCutoutBlob(pending.blob);
+        setCutoutUrl(restoredCutoutUrl);
+        setSelectedBackground(pending.selectedBackground ?? 0);
+        setCustomColor(pending.customColor || "#f2eee8");
+        setIsCustom(pending.isCustom === true);
+        setMessage("Signed in. Finishing your saved download…");
+        setResumeDownload(true);
+      } catch (restoreError) {
+        if (pending) {
+          try { await savePendingDownload(pending); } catch (storageError) {
+            if (active) setError(`Could not restore your image: ${restoreError.message} ${storageError.message}`);
+            return;
+          }
+        }
+        if (active) setError(restoreError instanceof Error ? restoreError.message : "Could not restore your image.");
+      }
+    };
+    const timer = window.setTimeout(() => { void restorePendingDownload(); }, 0);
+    return () => { active = false; window.clearTimeout(timer); };
+  }, []);
+
+  useEffect(() => {
+    if (!resumeDownload || !file || !cutoutBlob) return;
+    setResumeDownload(false);
+    void downloadResult();
+  }, [resumeDownload, file, cutoutBlob]);
 
   // Select and validate an image.
 const selectFile = (selectedFile) => {
@@ -156,6 +203,7 @@ const selectFile = (selectedFile) => {
   setOriginalUrl(imageUrl);
 
   setCutoutUrl("");
+  setCutoutBlob(null);
 };
 
   // Process locally so this long-running operation does not rely on Render.
@@ -169,6 +217,7 @@ const selectFile = (selectedFile) => {
     try {
       const imageBlob = await removeBackgroundInBrowser(file, setMessage);
 
+      setCutoutBlob(imageBlob);
       setCutoutUrl(URL.createObjectURL(imageBlob));
       setMessage("Background removed successfully!");
     } catch (cause) {
@@ -187,14 +236,26 @@ const selectFile = (selectedFile) => {
   // Apply the chosen background and download the final PNG.
   
 const downloadResult = async () => {
-  if (!cutoutUrl || !file || loading) return;
-  if (!(await requireLoginForDownload())) return;
-
+  if (!cutoutUrl || !file || downloadLockRef.current) return;
+  downloadLockRef.current = true;
   setLoading(true);
   setError("");
   setMessage("");
 
   try {
+    const hasQuota = await requireLoginForDownload(1, {
+      onLogin: () => savePendingDownload({
+        tool: "Background changer",
+        blob: cutoutBlob,
+        fileName: file.name,
+        originalFile: file,
+        returnTo: `${window.location.pathname}${window.location.search}${window.location.hash}`,
+        selectedBackground,
+        customColor,
+        isCustom,
+      }),
+    });
+    if (!hasQuota) return;
     // Keep the original image frame for export. Some background-removal
     // models return a tightly cropped cutout, while the preview centers it
     // inside the editor. Drawing it into the source frame keeps that layout
@@ -325,6 +386,7 @@ reset();
     setError(error.message || "Failed to download image.");
   } finally {
     setLoading(false);
+    downloadLockRef.current = false;
   }
 };
 
@@ -334,6 +396,7 @@ reset();
     setFile(null);
     setOriginalUrl("");
     setCutoutUrl("");
+    setCutoutBlob(null);
     setError("");
     setMessage("");
 

@@ -92,7 +92,7 @@ export function refreshGuestDownloadQuota() {
   return getGuestDownloadQuota();
 }
 
-function showLoginPrompt() {
+function showLoginPrompt(options = {}) {
   if (activeLoginPrompt) return Promise.resolve(false);
 
   let resolvePrompt;
@@ -132,9 +132,20 @@ function showLoginPrompt() {
     }
     resolvePrompt(authenticated);
   };
-  loginButton.addEventListener("click", () => {
+  loginButton.addEventListener("click", async () => {
     const returnTo = `${window.location.pathname}${window.location.search}${window.location.hash}`;
     const loginUrl = `/login?${new URLSearchParams({ returnTo }).toString()}`;
+    loginButton.disabled = true;
+    try {
+      await options.onLogin?.();
+    } catch (error) {
+      loginButton.disabled = false;
+      console.error("Could not save the pending download before login:", error);
+      description.textContent = error instanceof Error
+        ? error.message
+        : "Could not save your image before login. Please try again.";
+      return;
+    }
     window.location.assign(loginUrl);
   });
   closeButton.addEventListener("click", () => {
@@ -154,7 +165,7 @@ export async function requireLoginForDownload(imageCount = 1, options = {}) {
     if (latestQuota.authenticated !== true && Number(latestQuota.remaining) <= 0) {
       promptedForLogin = true;
       await waitForQuotaPaint();
-      if (!(await showLoginPrompt())) return false;
+      if (!(await showLoginPrompt(options))) return false;
     }
 
     let result = await quotaRequest("/download-quota/consume", {
@@ -166,7 +177,7 @@ export async function requireLoginForDownload(imageCount = 1, options = {}) {
       publishQuota(normalizeQuota({ ...currentQuota, ...result, error: "" }));
       await waitForQuotaPaint();
       promptedForLogin = true;
-      if (!(await showLoginPrompt())) return false;
+      if (!(await showLoginPrompt(options))) return false;
       result = await quotaRequest("/download-quota/consume", {
         method: "POST",
         body: JSON.stringify({ count }),
