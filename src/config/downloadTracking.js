@@ -46,6 +46,29 @@ function waitForQuotaPaint() {
   });
 }
 
+function getCurrentToolReturnTo() {
+  const currentRoute = `${window.location.pathname}${window.location.search}${window.location.hash}`;
+  if (window.location.pathname !== "/") return currentRoute;
+
+  const focusedTool = document.activeElement?.closest?.(".app-section[id]");
+  if (focusedTool?.id) return `/#${encodeURIComponent(focusedTool.id)}`;
+
+  const viewportMiddle = window.innerHeight / 2;
+  const visibleTools = [...document.querySelectorAll(".app-section[id]")]
+    .map((section) => ({ section, rect: section.getBoundingClientRect() }))
+    .filter(({ rect }) => rect.bottom > 0 && rect.top < window.innerHeight);
+  const currentTool = visibleTools.find(({ rect }) => rect.top <= viewportMiddle && rect.bottom >= viewportMiddle)
+    || visibleTools.sort((first, second) => {
+      const firstDistance = Math.min(Math.abs(first.rect.top), Math.abs(first.rect.bottom - window.innerHeight));
+      const secondDistance = Math.min(Math.abs(second.rect.top), Math.abs(second.rect.bottom - window.innerHeight));
+      return firstDistance - secondDistance;
+    })[0];
+
+  return currentTool?.section.id
+    ? `/#${encodeURIComponent(currentTool.section.id)}`
+    : currentRoute;
+}
+
 async function quotaRequest(path, options = {}) {
   const response = await fetch(`${API_USERS}${path}`, {
     credentials: "include",
@@ -133,7 +156,7 @@ function showLoginPrompt(options = {}) {
     resolvePrompt(authenticated);
   };
   loginButton.addEventListener("click", async () => {
-    const returnTo = `${window.location.pathname}${window.location.search}${window.location.hash}`;
+    const returnTo = options.returnTo || `${window.location.pathname}${window.location.search}${window.location.hash}`;
     const loginUrl = `/login?${new URLSearchParams({ returnTo }).toString()}`;
     loginButton.disabled = true;
     try {
@@ -157,6 +180,8 @@ function showLoginPrompt(options = {}) {
 
 export async function requireLoginForDownload(imageCount = 1, options = {}) {
   const count = Number.isFinite(imageCount) ? Math.max(1, Math.floor(imageCount)) : 1;
+  const returnTo = options.returnTo || getCurrentToolReturnTo();
+  const promptOptions = { ...options, returnTo };
   let promptedForLogin = false;
   try {
     // Check the server's latest balance at click time. Reaching 3 of 3 only
@@ -165,7 +190,7 @@ export async function requireLoginForDownload(imageCount = 1, options = {}) {
     if (latestQuota.authenticated !== true && Number(latestQuota.remaining) <= 0) {
       promptedForLogin = true;
       await waitForQuotaPaint();
-      if (!(await showLoginPrompt(options))) return false;
+      if (!(await showLoginPrompt(promptOptions))) return false;
     }
 
     let result = await quotaRequest("/download-quota/consume", {
@@ -177,7 +202,7 @@ export async function requireLoginForDownload(imageCount = 1, options = {}) {
       publishQuota(normalizeQuota({ ...currentQuota, ...result, error: "" }));
       await waitForQuotaPaint();
       promptedForLogin = true;
-      if (!(await showLoginPrompt(options))) return false;
+      if (!(await showLoginPrompt(promptOptions))) return false;
       result = await quotaRequest("/download-quota/consume", {
         method: "POST",
         body: JSON.stringify({ count }),

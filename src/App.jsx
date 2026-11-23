@@ -10,13 +10,6 @@ function App() {
   const [showAllTools, setShowAllTools] = useState(false);
   const [availableTools, setAvailableTools] = useState(toolCatalog);
   const location = useLocation();
-  const [activeHash, setActiveHash] = useState(() => window.location.hash);
-
-  useEffect(() => {
-    const syncHash = () => setActiveHash(window.location.hash);
-    window.addEventListener("hashchange", syncHash);
-    return () => window.removeEventListener("hashchange", syncHash);
-  }, []);
 
   useEffect(() => {
     let mounted = true;
@@ -54,7 +47,7 @@ function App() {
   const isAdminRoute = location.pathname.startsWith("/admin") || location.pathname.startsWith("/superadmin");
   const requestedId = location.pathname !== "/"
     ? location.pathname.replace(/^\/+|\/+$/g, "")
-    : activeHash.slice(1);
+    : location.hash.slice(1);
   const isFeedbackRoute = requestedId === "feedback";
   const requestedTool = availableTools.find((tool) => tool.route.slice(1) === requestedId);
   // When a tool is selected from the navigation, render that tool on its own.

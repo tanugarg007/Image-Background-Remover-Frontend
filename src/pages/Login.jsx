@@ -25,6 +25,14 @@ function Login() {
   const [loginSuccess, setLoginSuccess] = useState(null);
   const submitLock = useRef(false);
 
+  useEffect(() => {
+    if (!loginSuccess) return undefined;
+    const timer = window.setTimeout(() => {
+      navigate(loginSuccess.destination, { replace: true });
+    }, 700);
+    return () => window.clearTimeout(timer);
+  }, [loginSuccess, navigate]);
+
   const unavailableProvider = (provider) => setNotice(`${provider} sign-in is not connected yet. Please continue with email.`);
   useEffect(() => {
     if (
@@ -53,11 +61,11 @@ function Login() {
         if (!response.ok) throw new Error(data.message || "Could not finish Google sign-in.");
         if (cancelled) return;
         const role = data.user?.role || "user";
-        const destination = role === "superadmin"
+        const destination = getSafeReturnTo() || (role === "superadmin"
           ? "/superadmin"
           : role === "admin"
             ? "/admin"
-            : getSafeReturnTo() || "/user";
+            : "/user");
         setLoginSuccess({ destination, role });
       })
       .catch((error) => {
@@ -115,11 +123,11 @@ function Login() {
       }
 
       const role = data.user?.role || "user";
-      const destination = role === "superadmin"
+      const destination = getSafeReturnTo() || (role === "superadmin"
         ? "/superadmin"
         : role === "admin"
           ? "/admin"
-          : getSafeReturnTo() || "/user";
+          : "/user");
       setLoginSuccess({ destination, role });
     } catch (error) {
       setNotice(error instanceof Error ? error.message : "Could not connect to the login service.");

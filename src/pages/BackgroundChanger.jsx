@@ -7,7 +7,6 @@ import {
   Layers3,
   LockKeyhole,
   Palette,
-  RefreshCw,
   Sparkles,
   Upload,
 } from "lucide-react";
@@ -149,12 +148,6 @@ function BackgroundChanger() {
     return () => { active = false; window.clearTimeout(timer); };
   }, []);
 
-  useEffect(() => {
-    if (!resumeDownload || !file || !cutoutBlob) return;
-    setResumeDownload(false);
-    void downloadResult();
-  }, [resumeDownload, file, cutoutBlob]);
-
   // Select and validate an image.
 const selectFile = (selectedFile) => {
   if (!selectedFile) return;
@@ -238,12 +231,14 @@ const selectFile = (selectedFile) => {
 const downloadResult = async () => {
   if (!cutoutUrl || !file || downloadLockRef.current) return;
   downloadLockRef.current = true;
+  const loadingStartedAt = Date.now();
   setLoading(true);
   setError("");
   setMessage("");
 
   try {
     const hasQuota = await requireLoginForDownload(1, {
+      returnTo: "/#background-changer",
       onLogin: () => savePendingDownload({
         tool: "Background changer",
         blob: cutoutBlob,
@@ -385,10 +380,20 @@ reset();
     console.error("Download error:", error);
     setError(error.message || "Failed to download image.");
   } finally {
+    const remainingLoadingTime = 900 - (Date.now() - loadingStartedAt);
+    if (remainingLoadingTime > 0) {
+      await new Promise((resolve) => window.setTimeout(resolve, remainingLoadingTime));
+    }
     setLoading(false);
     downloadLockRef.current = false;
   }
 };
+
+  useEffect(() => {
+    if (!resumeDownload || !file || !cutoutBlob || !cutoutUrl) return;
+    setResumeDownload(false);
+    void downloadResult();
+  }, [resumeDownload, file, cutoutBlob, cutoutUrl, downloadResult]);
 
 
   // Reset and start with another image.
@@ -505,9 +510,9 @@ reset();
                   />
 
                   {loading && (
-                    <div className="bgx-loading">
-                      <RefreshCw size={22} />
-                      <span>Processing your image…</span>
+                    <div className="bgx-loading" role="status" aria-live="polite">
+                      <span className="bgx-download-spinner" aria-hidden="true" />
+                      <span>{cutoutUrl ? "Preparing your download…" : "Removing the background…"}</span>
                     </div>
                   )}
                 </div>
@@ -612,26 +617,29 @@ reset();
             </div>
 
             <button
-              className="bgx-primary"
+              className={`bgx-primary ${loading ? "bgx-primary-loading" : ""}`}
               type="button"
               onClick={
                 cutoutUrl ? downloadResult : removeBackground
               }
               disabled={!file || loading}
+              aria-busy={loading}
             >
               {loading ? (
-                <RefreshCw className="bgx-spin" size={17} />
+                <span className="bgx-download-spinner" aria-hidden="true" />
               ) : cutoutUrl ? (
                 <ArrowDownToLine size={17} />
               ) : (
                 <Sparkles size={17} />
               )}
 
-              {loading
-                ? "Working on your image…"
-                : cutoutUrl
-                  ? "Save & Download Image"
-                  : "Change background"}
+              <span>
+                {loading
+                  ? "Preparing your download…"
+                  : cutoutUrl
+                    ? "Save & Download Image"
+                    : "Change background"}
+              </span>
             </button>
 
             {cutoutUrl && (
