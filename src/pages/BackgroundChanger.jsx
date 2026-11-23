@@ -316,6 +316,7 @@ const originalName =
 const fileName = `${originalName}-background.png`;
 triggerFileDownload(downloadUrl, fileName, { revokeUrl: true });
 await trackDownload("Background changer", fileName, savedImage.size);
+reset();
 
   }
   catch (error) {
