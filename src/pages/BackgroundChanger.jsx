@@ -195,16 +195,23 @@ const downloadResult = async () => {
   setMessage("");
 
   try {
-    // Load transparent cutout
+    // Keep the original image frame for export. Some background-removal
+    // models return a tightly cropped cutout, while the preview centers it
+    // inside the editor. Drawing it into the source frame keeps that layout
+    // and the original aspect ratio in the downloaded image.
     const cutout = new window.Image();
     cutout.src = cutoutUrl;
 
     await cutout.decode();
 
+    const original = new window.Image();
+    original.src = originalUrl;
+    await original.decode();
+
     // Create canvas
     const canvas = document.createElement("canvas");
-    canvas.width = cutout.naturalWidth;
-    canvas.height = cutout.naturalHeight;
+    canvas.width = original.naturalWidth;
+    canvas.height = original.naturalHeight;
 
     const context = canvas.getContext("2d");
 
@@ -220,8 +227,21 @@ const downloadResult = async () => {
       activeBackground
     );
 
-    // Draw subject
-    context.drawImage(cutout, 0, 0);
+    // Contain and center the cutout in the original image frame, matching
+    // the centered preview even when the model returns cropped dimensions.
+    const scale = Math.min(
+      canvas.width / cutout.naturalWidth,
+      canvas.height / cutout.naturalHeight
+    );
+    const drawWidth = cutout.naturalWidth * scale;
+    const drawHeight = cutout.naturalHeight * scale;
+    context.drawImage(
+      cutout,
+      (canvas.width - drawWidth) / 2,
+      (canvas.height - drawHeight) / 2,
+      drawWidth,
+      drawHeight
+    );
 
     // Convert to PNG
     const result = await new Promise((resolve, reject) => {
@@ -233,7 +253,7 @@ const downloadResult = async () => {
             reject(new Error("Image conversion failed."));
           }
         },
-        "image/png,image.jpg,image/jpeg,image/webp,image/jfif"
+        "image/png"
       );
     });
 
